@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+# pintail - Build static sites from collections of Mallard documents
+# Copyright (c) 2015 Shaun McCance <shaunm@gnome.org>
+#
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU Lesser General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option) any
+# later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
+# details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; see the file COPYING.LGPL.  If not, write to the
+# Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+# 02111-1307, USA.
+
+import argparse
+import os
+import sys
+
+import pintail
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers(title='commands', dest='command')
+
+    parser_build = subparsers.add_parser('build', help='build the entire site')
+    parser_build.add_argument('--local', action='store_true')
+
+    parser_css = subparsers.add_parser('css', help='rebuild CSS resources')
+    parser_css.add_argument('--local', action='store_true')
+
+    args = parser.parse_args(sys.argv[1:])
+
+    dir = os.getcwd()
+    config = os.path.join(dir, 'pintail.cfg')
+    while not os.path.exists(config):
+        if os.path.dirname(dir) == dir:
+            break
+        dir = os.path.dirname(dir)
+        config = os.path.join(dir, 'pintail.cfg')
+    if not os.path.exists(config):
+        sys.stderr.write('Could not find a pintail.cfg file\n')
+        sys.exit(1)
+
+    site = pintail.Site(config)
+
+    if args.local:
+        site.config.set('pintail', 'site_root', site.target_path + '/')
+
+    if args.command == 'build':
+        site.build()
+    elif args.command == 'css':
+        site.build_cache()
+        site.build_css()
