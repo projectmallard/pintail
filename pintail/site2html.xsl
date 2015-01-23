@@ -114,11 +114,25 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
         <xsl:when test="contains($xref, '#')">
           <xsl:variable name="pageid" select="substring-before($xref, '#')"/>
           <xsl:variable name="sectionid" select="substring-after($xref, '#')"/>
-          <xsl:value-of select="concat($pageid, $mal.link.extension)"/>
-          <xsl:value-of select="concat('#', $sectionid)"/>
+          <xsl:choose>
+            <xsl:when test="starts-with($pageid, '/')">
+              <xsl:value-of select="substring($pageid, 2)"/>
+            </xsl:when>
+            <xsl:otherwise>
+              <xsl:value-of select="$pageid"/>
+            </xsl:otherwise>
+          </xsl:choose>
+          <xsl:value-of select="concat($mal.link.extension, '#', $sectionid)"/>
         </xsl:when>
         <xsl:otherwise>
-          <xsl:value-of select="concat($xref, $mal.link.extension)"/>
+          <xsl:choose>
+            <xsl:when test="starts-with($xref, '/')">
+              <xsl:value-of select="concat(substring($xref, 2), $mal.link.extension)"/>
+            </xsl:when>
+            <xsl:otherwise>
+              <xsl:value-of select="concat($xref, $mal.link.extension)"/>
+            </xsl:otherwise>
+          </xsl:choose>
         </xsl:otherwise>
       </xsl:choose>
     </xsl:otherwise>
