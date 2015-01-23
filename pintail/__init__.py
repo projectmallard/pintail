@@ -89,7 +89,7 @@ class MallardPage(Page):
             ret.tail = '\n'
             if node.tag == MAL_NS + 'page':
                 ret.set('id', self.site_id)
-            else:
+            elif node.get('id', None) is not None:
                 ret.set('id', self.site_id + '#' + node.get('id'))
             ret.set(SITE_NS + 'dir', self.directory.path)
             for child in node:
@@ -106,7 +106,6 @@ class MallardPage(Page):
         subprocess.call(['xsltproc',
                          '--stringparam', 'mal.cache.file', self.site.cache_path,
                          '--stringparam', 'mal.site.dir', self.directory.path,
-                         # FIXME
                          '--stringparam', 'mal.site.root',
                          self.site.config.get('pintail', 'site_root', fallback='/'),
                          '-o', self.target_path,
@@ -188,6 +187,19 @@ class Site:
 
         self.cache_path = os.path.join(self.tools_path, 'pintail.cache')
         self.xslt_path = os.path.join(self.tools_path, 'pintail.xsl')
+
+    @classmethod
+    def init_site(cls, directory):
+        cfgfile = os.path.join(directory, 'pintail.cfg')
+        if os.path.exists(cfgfile):
+            sys.stderr.write('pintail.cfg file already exists\n')
+            sys.exit(1)
+        from pkg_resources import resource_string
+        sample = resource_string(__name__, 'sample.cfg')
+        fd = open(cfgfile, 'w')
+        fd.write(codecs.decode(sample, 'utf-8'))
+        fd.close()
+
 
     def build(self):
         self.build_stage()

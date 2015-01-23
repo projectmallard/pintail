@@ -27,14 +27,20 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(title='commands', dest='command')
 
-    parser_build = subparsers.add_parser('build', help='build the entire site')
-    parser_build.add_argument('--local', action='store_true')
+    subparser = subparsers.add_parser('init', help='initialize a new site')
 
-    parser_css = subparsers.add_parser('css', help='rebuild CSS resources')
-    parser_css.add_argument('--local', action='store_true')
+    subparser = subparsers.add_parser('build', help='build the entire site')
+    subparser.add_argument('--local', action='store_true')
+
+    subparser = subparsers.add_parser('css', help='rebuild CSS resources')
+    subparser.add_argument('--local', action='store_true')
 
     args = parser.parse_args(sys.argv[1:])
 
+    if args.command == 'init':
+        pintail.Site.init_site(os.curdir)
+        sys.exit(0)
+        
     dir = os.getcwd()
     config = os.path.join(dir, 'pintail.cfg')
     while not os.path.exists(config):
@@ -49,6 +55,7 @@ if __name__ == '__main__':
     site = pintail.Site(config)
 
     if args.local:
+        print(site.target_path)
         site.config.set('pintail', 'site_root', site.target_path + '/')
 
     if args.command == 'build':
