@@ -93,7 +93,26 @@ class MallardPage(Page):
                 ret.set('id', self.site_id + '#' + node.get('id'))
             ret.set(SITE_NS + 'dir', self.directory.path)
             for child in node:
-                if child.tag in (MAL_NS + 'info', MAL_NS + 'title'):
+                if child.tag == MAL_NS + 'info':
+                    info = etree.Element(child.tag)
+                    ret.append(info)
+                    for infochild in child:
+                        if infochild.tag == MAL_NS + 'link':
+                            xref = infochild.get('xref', None)
+                            if xref is None or xref.startswith('/'):
+                                info.append(infochild)
+                            else:
+                                link = etree.Element(infochild.tag)
+                                link.set('xref', self.directory.path + xref)
+                                for attr in infochild.keys():
+                                    if attr != 'xref':
+                                        link.set(attr, infochild.get(attr))
+                                for linkchild in infochild:
+                                    link.append(linkchild)
+                                info.append(link)
+                        else:
+                            info.append(infochild)
+                if child.tag == MAL_NS + 'title':
                     ret.append(child)
                 elif child.tag == MAL_NS + 'section':
                     ret.append(_get_node_cache(child))
