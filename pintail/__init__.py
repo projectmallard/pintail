@@ -131,6 +131,20 @@ class MallardPage(Page):
                          self.site.xslt_path,
                          self.stage_path])
 
+    def get_media(self):
+        refs = set()
+        def _accumulate_refs(node):
+            src = node.get('src', None)
+            if src is not None and ':' not in src:
+                refs.add(src)
+            href = node.get('href', None)
+            if href is not None and ':' not in href:
+                refs.add(href)
+            for child in node:
+                _accumulate_refs(child)
+        _accumulate_refs(self._tree.getroot())
+        return refs
+
     @classmethod
     def get_pages(cls, directory, filename):
         if filename.endswith('.page'):
@@ -193,6 +207,23 @@ class Directory:
         for page in self.pages:
             page.build_html()
 
+    def build_media(self):
+        os.makedirs(self.target_path, exist_ok=True)
+        for subdir in self.subdirs:
+            subdir.build_media()
+        media = set()
+        for page in self.pages:
+            media.update(page.get_media())
+        for fname in media:
+            if fname.startswith('/'):
+                source = os.path.join(self.site.topdir, fname[1:])
+                target = os.path.join(self.site.target_path, fname[1:])
+            else:
+                source = os.path.join(self.source_path, fname)
+                target = os.path.join(self.target_path, fname)
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            shutil.copyfile(source, target)
+
 
 class Site:
     def __init__(self, config):
@@ -225,6 +256,7 @@ class Site:
         self.build_cache()
         self.build_xslt()
         self.build_html()
+        self.build_media()
         self.build_css()
 
     def build_stage(self):
@@ -291,6 +323,9 @@ class Site:
         if os.path.exists(self.target_path):
             shutil.rmtree(self.target_path)
         self.root.build_html()
+
+    def build_media(self):
+        self.root.build_media()
 
     def build_css(self):
         xslpath = subprocess.check_output(['pkg-config',
