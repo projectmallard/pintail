@@ -127,7 +127,7 @@ class MallardPage(Page):
                          '--stringparam', 'mal.cache.file', self.site.cache_path,
                          '--stringparam', 'mal.site.dir', self.directory.path,
                          '--stringparam', 'mal.site.root',
-                         self.site.config.get('pintail', 'site_root', fallback='/'),
+                         self.site.config.get('site_root') or '/',
                          '-o', self.target_path,
                          self.site.xslt_path,
                          self.stage_path])
@@ -227,7 +227,7 @@ class Directory:
 
     def build_files(self):
         os.makedirs(self.stage_path, exist_ok=True)
-        globs = self.site.config.get(self.path, 'extra_files', fallback=None)
+        globs = self.site.config.get('extra_files', self.path)
         if globs is not None:
             for glb in globs.split():
                 # This won't do what it should if the path has anything
@@ -244,8 +244,6 @@ class Directory:
 
 class Site:
     def __init__(self, config):
-        self.config = configparser.ConfigParser()
-        self.config.read(config)
         self.topdir = os.path.dirname(config)
         self.stage_path = os.path.join(self.topdir, '__stage__')
         self.target_path = os.path.join(self.topdir, '__build__')
@@ -254,6 +252,8 @@ class Site:
 
         self.cache_path = os.path.join(self.tools_path, 'pintail.cache')
         self.xslt_path = os.path.join(self.tools_path, 'pintail.xsl')
+
+        self.config = Config(self, config)
 
     @classmethod
     def init_site(cls, directory):
@@ -312,7 +312,7 @@ class Site:
                  ' xmlns:xsl="http://www.w3.org/1999/XSL/Transform"' +
                  ' version="1.0">\n' +
                  '<xsl:import href="pintail-site.xsl"/>\n')
-        custom_xsl = self.config['pintail'].get('custom_xsl', None)
+        custom_xsl = self.config.get('custom_xsl')
         if custom_xsl is not None:
             custom_xsl = os.path.join(self.topdir, custom_xsl)
             fd.write('<xsl:include href="%s"/>\n' % custom_xsl)
@@ -372,7 +372,7 @@ class Site:
             '<xsl:import href="' + xslpath + '/common/html.xsl"/>\n',
             '<xsl:import href="' + xslpath + '/mallard/html/mal2html-page.xsl"/>\n'
             ])
-        custom_xsl = self.config['pintail'].get('custom_xsl', None)
+        custom_xsl = self.config.get('custom_xsl')
         if custom_xsl is not None:
             custom_xsl = os.path.join(self.topdir, custom_xsl)
             fd.write('<xsl:include href="%s"/>\n' % custom_xsl)
@@ -443,7 +443,7 @@ class Site:
             ' version="1.0">\n'
             '<xsl:import href="', xslpath, '/mallard/html/mal2xhtml.xsl"/>\n'
             ])
-        custom_xsl = self.config['pintail'].get('custom_xsl', None)
+        custom_xsl = self.config.get('custom_xsl')
         if custom_xsl is not None:
             custom_xsl = os.path.join(self.topdir, custom_xsl)
             fd.write('<xsl:include href="%s"/>\n' % custom_xsl)
@@ -473,7 +473,7 @@ class Site:
             ' version="1.0">\n',
             '<xsl:import href="', xslpath, '/mallard/html/mal2xhtml.xsl"/>\n'
         ])
-        custom_xsl = self.config['pintail'].get('custom_xsl', None)
+        custom_xsl = self.config.get('custom_xsl')
         if custom_xsl is not None:
             custom_xsl = os.path.join(self.topdir, custom_xsl)
             fd.write('<xsl:include href="%s"/>\n' % custom_xsl)
@@ -520,3 +520,26 @@ class Site:
         if directory == '/.git/':
             return True
         return False
+
+
+class Config:
+    def __init__(self, site, filename):
+        self._site = site
+        self._config = configparser.ConfigParser()
+        self._config.read(filename)
+        self._local = False
+
+    def get(self, key, path=None):
+        if path is None:
+            path = 'pintail'
+        if self._local and path == 'pintail':
+            ret = self._config.get('local', key, fallback=None)
+            if ret is not None:
+                return ret
+        return self._config.get(path, key, fallback=None)
+
+    def set_local(self):
+        self._config.set('pintail', 'site_root',
+                         self._site.target_path + '/')
+        self._local = True
+

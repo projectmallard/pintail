@@ -61,7 +61,7 @@ if __name__ == '__main__':
     site = pintail.Site(config)
 
     if args.local:
-        site.config.set('pintail', 'site_root', site.target_path + '/')
+        site.config.set_local()
 
     if args.command == 'build':
         site.build()
