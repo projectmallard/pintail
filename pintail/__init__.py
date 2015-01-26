@@ -18,6 +18,7 @@
 
 import codecs
 import configparser
+import glob
 import os
 import shutil
 import subprocess
@@ -224,6 +225,22 @@ class Directory:
             os.makedirs(os.path.dirname(target), exist_ok=True)
             shutil.copyfile(source, target)
 
+    def build_files(self):
+        os.makedirs(self.stage_path, exist_ok=True)
+        globs = self.site.config.get(self.path, 'extra_files', fallback=None)
+        if globs is not None:
+            for glb in globs.split():
+                # This won't do what it should if the path has anything
+                # glob-like in it. Would be nice if glob() could take
+                # a base path that isn't glob-interpreted.
+                files = glob.glob(os.path.join(self.source_path, glb))
+                for fname in files:
+                    shutil.copyfile(fname,
+                                    os.path.join(self.target_path,
+                                                 os.path.basename(fname)))
+        for subdir in self.subdirs:
+            subdir.build_files()
+
 
 class Site:
     def __init__(self, config):
@@ -259,6 +276,7 @@ class Site:
         self.build_media()
         self.build_css()
         self.build_js()
+        self.build_files()
 
     def build_stage(self):
         if os.path.exists(self.stage_path):
@@ -490,6 +508,9 @@ class Site:
         for brush in brushes.split():
             shutil.copyfile(os.path.join(jspath, brush),
                             os.path.join(self.target_path, brush))
+
+    def build_files(self):
+        self.root.build_files()
 
 
     def get_ignore_directory(self, directory):
