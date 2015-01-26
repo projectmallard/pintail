@@ -35,6 +35,9 @@ if __name__ == '__main__':
     subparser = subparsers.add_parser('css', help='rebuild CSS resources')
     subparser.add_argument('--local', action='store_true')
 
+    subparser = subparsers.add_parser('js', help='rebuild JavaScript resources')
+    subparser.add_argument('--local', action='store_true')
+
     args = parser.parse_args(sys.argv[1:])
 
     if args.command == 'init':
@@ -62,3 +65,6 @@ if __name__ == '__main__':
     elif args.command == 'css':
         site.build_cache()
         site.build_css()
+    elif args.command == 'js':
+        site.build_cache()
+        site.build_js()
