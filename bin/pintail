@@ -29,19 +29,30 @@ if __name__ == '__main__':
 
     subparser = subparsers.add_parser('init', help='initialize a new site')
 
-    subparser = subparsers.add_parser('build', help='build the entire site')
-    subparser.add_argument('--local', action='store_true')
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument('--local',
+                        help='make output suitable for local viewing',
+                        action='store_true')
+    common.add_argument('-o', '--output',
+                        help='specify an output directory',
+                        metavar='OUTPUTDIR')
 
-    subparser = subparsers.add_parser('css', help='rebuild CSS resources')
-    subparser.add_argument('--local', action='store_true')
+    subparser = subparsers.add_parser('build',
+                                      help='build the entire site',
+                                      parents=[common])
 
-    subparser = subparsers.add_parser('js', help='rebuild JavaScript resources')
-    subparser.add_argument('--local', action='store_true')
+    subparser = subparsers.add_parser('css',
+                                      help='rebuild CSS resources',
+                                      parents=[common])
+
+    subparser = subparsers.add_parser('js',
+                                      help='rebuild JavaScript resources',
+                                      parents=[common])
 
     subparser = subparsers.add_parser('files', help='rebuild extra files')
     subparser.add_argument('--local', action='store_true')
 
-    args = parser.parse_args(sys.argv[1:])
+    args = parser.parse_args()
 
     if args.command == 'init':
         pintail.Site.init_site(os.curdir)
@@ -62,6 +73,9 @@ if __name__ == '__main__':
 
     if args.local:
         site.config.set_local()
+
+    if args.output is not None:
+        site.target_path = os.path.abspath(args.output)
 
     if args.command == 'build':
         site.build()

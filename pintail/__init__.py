@@ -248,11 +248,11 @@ class Site:
         self.stage_path = os.path.join(self.topdir, '__stage__')
         self.target_path = os.path.join(self.topdir, '__build__')
         self.tools_path = os.path.join(self.topdir, '__tools__')
-        self.root = Directory(self, '/')
 
         self.cache_path = os.path.join(self.tools_path, 'pintail.cache')
         self.xslt_path = os.path.join(self.tools_path, 'pintail.xsl')
 
+        self.root = None
         self.config = Config(self, config)
 
     @classmethod
@@ -267,8 +267,12 @@ class Site:
         fd.write(codecs.decode(sample, 'utf-8'))
         fd.close()
 
+    def read_directories(self):
+        if self.root is None:
+            self.root = Directory(self, '/')
 
     def build(self):
+        self.read_directories()
         self.build_stage()
         self.build_cache()
         self.build_xslt()
@@ -279,11 +283,13 @@ class Site:
         self.build_files()
 
     def build_stage(self):
+        self.read_directories()
         if os.path.exists(self.stage_path):
             shutil.rmtree(self.stage_path)
         self.root.build_stage()
 
     def build_cache(self):
+        self.read_directories()
         cache = etree.Element(CACHE_NS + 'cache', nsmap={
             None: 'http://projectmallard.org/1.0/',
             'cache': 'http://projectmallard.org/cache/1.0/',
@@ -306,6 +312,7 @@ class Site:
         if mal2html == '':
             print('FIXME: mal2html not found')
         os.makedirs(self.tools_path, exist_ok=True)
+
 
         fd = open(self.xslt_path, 'w')
         fd.write('<xsl:stylesheet' +
@@ -339,14 +346,15 @@ class Site:
         fd.close()
 
     def build_html(self):
-        if os.path.exists(self.target_path):
-            shutil.rmtree(self.target_path)
+        self.read_directories()
         self.root.build_html()
 
     def build_media(self):
+        self.read_directories()
         self.root.build_media()
 
     def build_css(self):
+        self.read_directories()
         xslpath = subprocess.check_output(['pkg-config',
                                            '--variable', 'xsltdir',
                                            'yelp-xsl'],
@@ -410,6 +418,7 @@ class Site:
                          cssxsl, self.cache_path])
 
     def build_js(self):
+        self.read_directories()
         jspath = subprocess.check_output(['pkg-config',
                                           '--variable', 'jsdir',
                                           'yelp-xsl'],
@@ -510,6 +519,7 @@ class Site:
                             os.path.join(self.target_path, brush))
 
     def build_files(self):
+        self.read_directories()
         self.root.build_files()
 
 
