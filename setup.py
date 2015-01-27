@@ -11,7 +11,7 @@ setup(
     },
     author='Shaun McCance',
     author_email='shaunm@gnome.org',
-    license='MIT',
+    license='GPLv2+',
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Environment :: Console',
