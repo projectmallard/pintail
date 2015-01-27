@@ -123,6 +123,7 @@ class MallardPage(Page):
         return page
 
     def build_html(self):
+        self.site.echo('HTML', self.directory.path, self.target_file)
         subprocess.call(['xsltproc',
                          '--stringparam', 'mal.cache.file', self.site.cache_path,
                          '--stringparam', 'mal.site.dir', self.directory.path,
@@ -222,6 +223,7 @@ class Directory:
             else:
                 source = os.path.join(self.source_path, fname)
                 target = os.path.join(self.target_path, fname)
+            self.site.echo('MEDIA', self.path, os.path.basename(fname))
             os.makedirs(os.path.dirname(target), exist_ok=True)
             shutil.copyfile(source, target)
 
@@ -235,6 +237,7 @@ class Directory:
                 # a base path that isn't glob-interpreted.
                 files = glob.glob(os.path.join(self.source_path, glb))
                 for fname in files:
+                    self.site.echo('FILE', self.path, os.path.basename(fname))
                     shutil.copyfile(fname,
                                     os.path.join(self.target_path,
                                                  os.path.basename(fname)))
@@ -254,6 +257,7 @@ class Site:
 
         self.root = None
         self.config = Config(self, config)
+        self.verbose = False
 
     @classmethod
     def init_site(cls, directory):
@@ -291,6 +295,7 @@ class Site:
 
     def build_cache(self):
         self.read_directories()
+        self.echo('CACHE', '__tools__', 'pintail.cache')
         cache = etree.Element(CACHE_NS + 'cache', nsmap={
             None: 'http://projectmallard.org/1.0/',
             'cache': 'http://projectmallard.org/cache/1.0/',
@@ -414,6 +419,8 @@ class Site:
             ])
         fd.close()
 
+        # FIXME: need self.site.echo. Maybe we loop over the langs
+        # in python, calling xsltproc for each.
         subprocess.call(['xsltproc',
                          '-o', self.target_path,
                          cssxsl, self.cache_path])
@@ -429,6 +436,7 @@ class Site:
             print('FIXME: yelp-xsl not found')
         for js in ['jquery.js', 'jquery.syntax.js', 'jquery.syntax.core.js',
                    'jquery.syntax.layout.yelp.js']:
+            self.echo('JS', '/', js)
             shutil.copyfile(os.path.join(jspath, js),
                             os.path.join(self.target_path, js))
 
@@ -466,6 +474,7 @@ class Site:
             ])
         fd.close()
 
+        self.echo('JS', '/', 'yelp.js')
         subprocess.call(['xsltproc',
                          '-o', os.path.join(self.target_path, 'yelp.js'),
                          jsxsl, self.cache_path])
@@ -516,6 +525,7 @@ class Site:
                                            jsxsl, self.cache_path],
                                           universal_newlines=True)
         for brush in brushes.split():
+            self.echo('JS', '/', brush)
             shutil.copyfile(os.path.join(jspath, brush),
                             os.path.join(self.target_path, brush))
 
@@ -570,6 +580,7 @@ class Site:
                                 iconsize + 'x' + iconsize,
                                 'status')
         for f in os.listdir(iconpath):
+            self.echo('ICON', '/', f)
             shutil.copyfile(os.path.join(iconpath, f),
                             os.path.join(self.target_path, f))
 
@@ -580,6 +591,11 @@ class Site:
         if directory == '/.git/':
             return True
         return False
+
+    def echo(self, tag, path, name):
+        if self.verbose:
+            print(tag + (' ' * (5 - len(tag))) + ' ' +
+                  path.strip('/') + '/' + name)
 
 
 class Config:

@@ -36,6 +36,9 @@ if __name__ == '__main__':
     common.add_argument('-o', '--output',
                         help='specify an output directory',
                         metavar='OUTPUTDIR')
+    common.add_argument('-v', '--verbose',
+                        help='report on the files being created',
+                        action='store_true')
 
     subparser = subparsers.add_parser('build',
                                       help='build the entire site',
@@ -70,6 +73,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     site = pintail.Site(config)
+    site.verbose = args.verbose
 
     if args.local:
         site.config.set_local()
