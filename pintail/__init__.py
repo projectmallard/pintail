@@ -45,7 +45,7 @@ class Page:
         self.source_path = os.path.join(directory.source_path, source_file)
         self.stage_file = source_file
         self.stage_path = os.path.join(directory.stage_path, self.stage_file)
-        self.target_extension = '.html'
+        self.target_extension = self.site.config.get('html_extension') or '.html'
         self.page_id = None
 
     @property
@@ -325,6 +325,14 @@ class Site:
                  ' xmlns:xsl="http://www.w3.org/1999/XSL/Transform"' +
                  ' version="1.0">\n' +
                  '<xsl:import href="pintail-site.xsl"/>\n')
+        html_extension = self.config.get('html_extension')
+        if html_extension is not None:
+            fd.write('<xsl:param name="html.extension" select="' +
+                     "'" + html_extension + "'" + '"/>')
+        link_extension = self.config.get('link_extension')
+        if link_extension is not None:
+            fd.write('<xsl:param name="mal.link.extension" select="' +
+                     "'" + link_extension + "'" + '"/>')
         custom_xsl = self.config.get('custom_xsl')
         if custom_xsl is not None:
             custom_xsl = os.path.join(self.topdir, custom_xsl)
