@@ -25,8 +25,6 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
                 exclude-result-prefixes="mal str exsl"
                 version="1.0">
 
-<xsl:import href="/usr/share/yelp-xsl/xslt/mallard/html/mal2html.xsl"/>
-
 <xsl:param name="mal.site.root" select="'/'"/>
 <xsl:param name="mal.site.dir"/>
 
