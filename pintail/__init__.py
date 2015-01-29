@@ -88,6 +88,9 @@ class MallardPage(Page):
             ret = etree.Element(node.tag)
             ret.text = '\n'
             ret.tail = '\n'
+            for attr in node.keys():
+                if attr != 'id':
+                    ret.set(attr, node.get(attr))
             if node.tag == MAL_NS + 'page':
                 ret.set('id', self.site_id)
             elif node.get('id', None) is not None:
