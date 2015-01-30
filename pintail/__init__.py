@@ -247,6 +247,65 @@ class Directory:
         for subdir in self.subdirs:
             subdir.build_files()
 
+    def build_feeds(self):
+        atomfile = self.site.config.get('feed_atom', self.path)
+        if atomfile is not None:
+            self.site.echo('ATOM', self.path, atomfile)
+
+            os.makedirs(self.site.tools_path, exist_ok=True)
+            for xsltfile in ('site2html.xsl', 'site2atom.xsl'):
+                xsltpath = os.path.join(self.site.tools_path, xsltfile)
+                if not os.path.exists(xsltpath):
+                    from pkg_resources import resource_string
+                    xsltcont = resource_string(__name__, xsltfile)
+                    fd = open(xsltpath, 'w')
+                    fd.write(codecs.decode(xsltcont, 'utf-8'))
+                    fd.close()
+
+
+            mal2xhtml = subprocess.check_output(['pkg-config',
+                                                 '--variable', 'mal2xhtml',
+                                                 'yelp-xsl'],
+                                                universal_newlines=True)
+            mal2xhtml = mal2xhtml.strip()
+            if mal2xhtml == '':
+                print('FIXME: mal2html not found')
+
+            atomxsl = os.path.join(self.site.tools_path, 'pintail-atom.xsl')
+            fd = open(atomxsl, 'w')
+            fd.write('<xsl:stylesheet' +
+                     ' xmlns:xsl="http://www.w3.org/1999/XSL/Transform"' +
+                     ' version="1.0">\n')
+            fd.write('<xsl:import href="' + mal2xhtml + '"/>\n')
+            fd.write('<xsl:import href="site2atom.xsl"/>\n')
+            html_extension = self.site.config.get('html_extension') or '.html'
+            fd.write('<xsl:param name="html.extension" select="' +
+                     "'" + html_extension + "'" + '"/>')
+            link_extension = self.site.config.get('link_extension')
+            if link_extension is not None:
+                fd.write('<xsl:param name="mal.link.extension" select="' +
+                         "'" + link_extension + "'" + '"/>')
+            custom_xsl = self.site.config.get('custom_xsl')
+            if custom_xsl is not None:
+                custom_xsl = os.path.join(self.site.topdir, custom_xsl)
+                fd.write('<xsl:include href="%s"/>\n' % custom_xsl)
+            fd.write('</xsl:stylesheet>')
+            fd.close()
+
+            root = self.site.config.get('feed_root', self.path)
+            if root is None:
+                root = self.site.config.get('site_root') or '/'
+
+            subprocess.call(['xsltproc',
+                             '-o', os.path.join(self.target_path, atomfile),
+                             '--stringparam', 'mal.site.dir', self.path,
+                             '--stringparam', 'mal.site.root', root,
+                             '--stringparam', 'feed.exclude_styles',
+                             self.site.config.get('feed_exclude_styles', self.path) or '',
+                             atomxsl, self.site.cache_path])
+        for subdir in self.subdirs:
+            subdir.build_feeds()
+
 
 class Site:
     def __init__(self, config):
@@ -289,6 +348,7 @@ class Site:
         self.build_js()
         self.build_files()
         self.build_icons()
+        self.build_feeds()
 
     def build_stage(self):
         self.read_directories()
@@ -322,16 +382,14 @@ class Site:
             print('FIXME: mal2html not found')
         os.makedirs(self.tools_path, exist_ok=True)
 
-
         fd = open(self.xslt_path, 'w')
         fd.write('<xsl:stylesheet' +
                  ' xmlns:xsl="http://www.w3.org/1999/XSL/Transform"' +
                  ' version="1.0">\n' +
                  '<xsl:import href="pintail-site.xsl"/>\n')
-        html_extension = self.config.get('html_extension')
-        if html_extension is not None:
-            fd.write('<xsl:param name="html.extension" select="' +
-                     "'" + html_extension + "'" + '"/>')
+        html_extension = self.config.get('html_extension') or '.html'
+        fd.write('<xsl:param name="html.extension" select="' +
+                 "'" + html_extension + "'" + '"/>')
         link_extension = self.config.get('link_extension')
         if link_extension is not None:
             fd.write('<xsl:param name="mal.link.extension" select="' +
@@ -543,6 +601,10 @@ class Site:
     def build_files(self):
         self.read_directories()
         self.root.build_files()
+
+    def build_feeds(self):
+        self.read_directories()
+        self.root.build_feeds()
 
     def build_icons(self):
         xslpath = subprocess.check_output(['pkg-config',

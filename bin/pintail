@@ -52,6 +52,10 @@ if __name__ == '__main__':
                                       help='rebuild JavaScript resources',
                                       parents=[common])
 
+    subparser = subparsers.add_parser('feeds',
+                                      help='rebuild Atom feeds',
+                                      parents=[common])
+
     subparser = subparsers.add_parser('files', help='rebuild extra files')
     subparser.add_argument('--local', action='store_true')
 
@@ -91,3 +95,6 @@ if __name__ == '__main__':
         site.build_js()
     elif args.command == 'files':
         site.build_files()
+    elif args.command == 'feeds':
+        site.build_cache()
+        site.build_feeds()
