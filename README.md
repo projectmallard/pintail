@@ -22,10 +22,11 @@ Or to get the latest version uploaded to pypi:
 pip-python3 install pintail
 ```
 
-Pintail requires `yelp-xsl` for transforming Mallard pages into HTML. This is
-available on all major Linux distributions, and is installed by default on
-most. Use your distribution's package manager, or use MacPorts to install
-`yelp-xsl` on Mac. (Future versions will download `yelp-xsl` automatically if
+Pintail requires `yelp-xsl` and `python3-lxml`to transform Mallard pages
+into HTML. Both packages are available on all major Linux distributions, and
+`yelp-xsl`is installed by default on most. You will likely need to use your package
+manager to install `python3-lxml`. If using a Mac, use MacPorts to install
+`yelp-xsl`. (Future versions will download `yelp-xsl` automatically if
 necessary. See issue #8.)
 
 ## Using Pintail
