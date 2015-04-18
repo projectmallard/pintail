@@ -79,7 +79,7 @@ class Page:
 class MallardPage(Page):
     def __init__(self, directory, source_file):
         Page.__init__(self, directory, source_file)
-        self._tree = etree.parse(open(self.source_path))
+        self._tree = etree.parse(self.source_path)
         etree.XInclude()(self._tree.getroot())
         self.page_id = self._tree.getroot().get('id')
 
@@ -493,7 +493,7 @@ class Site:
         from pkg_resources import resource_string
         site2html = resource_string(__name__, 'site2html.xsl')
         fd = open(os.path.join(os.path.dirname(self.xslt_path),
-                               'site2html.xsl'), 'w')
+                               'site2html.xsl'), 'w', encoding='utf-8')
         fd.write(codecs.decode(site2html, 'utf-8'))
         fd.close()
 
