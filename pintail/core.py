@@ -233,21 +233,21 @@ class Directory:
             yield from subdir.iter_pages()
 
     def build_stage(self):
-        os.makedirs(self.stage_path, exist_ok=True)
+        Site._makedirs(self.stage_path)
         for subdir in self.directories:
             subdir.build_stage()
         for page in self.pages:
             page.build_stage()
 
     def build_html(self):
-        os.makedirs(self.target_path, exist_ok=True)
+        Site._makedirs(self.target_path)
         for subdir in self.directories:
             subdir.build_html()
         for page in self.pages:
             page.build_html()
 
     def build_media(self):
-        os.makedirs(self.target_path, exist_ok=True)
+        Site._makedirs(self.target_path)
         for subdir in self.directories:
             subdir.build_media()
         media = set()
@@ -261,11 +261,11 @@ class Directory:
                 source = os.path.join(self.source_path, fname)
                 target = os.path.join(self.target_path, fname)
             self.site.echo('MEDIA', self.path, os.path.basename(fname))
-            os.makedirs(os.path.dirname(target), exist_ok=True)
+            Site._makedirs(os.path.dirname(target))
             shutil.copyfile(source, target)
 
     def build_files(self):
-        os.makedirs(self.stage_path, exist_ok=True)
+        Site._makedirs(self.stage_path)
         globs = self.site.config.get('extra_files', self.path)
         if globs is not None:
             for glb in globs.split():
@@ -286,7 +286,7 @@ class Directory:
         if atomfile is not None:
             self.site.echo('ATOM', self.path, atomfile)
 
-            os.makedirs(self.site.tools_path, exist_ok=True)
+            Site._makedirs(self.site.tools_path)
             for xsltfile in ('site2html.xsl', 'site2atom.xsl'):
                 xsltpath = os.path.join(self.site.tools_path, xsltfile)
                 if not os.path.exists(xsltpath):
@@ -445,7 +445,7 @@ class Site:
             cdata = page.get_cache_data()
             if cdata is not None:
                 cache.append(cdata)
-        os.makedirs(self.tools_path, exist_ok=True)
+        Site._makedirs(self.tools_path)
         cache.getroottree().write(self.cache_path,
                                   pretty_print=True)
 
@@ -457,7 +457,7 @@ class Site:
         mal2html = mal2html.strip()
         if mal2html == '':
             print('FIXME: mal2html not found')
-        os.makedirs(self.tools_path, exist_ok=True)
+        Site._makedirs(self.tools_path)
 
         fd = open(self.xslt_path, 'w')
         fd.write('<xsl:stylesheet' +
@@ -515,7 +515,7 @@ class Site:
         if xslpath == '':
             print('FIXME: yelp-xsl not found')
 
-        os.makedirs(self.tools_path, exist_ok=True)
+        Site._makedirs(self.tools_path)
         cssxsl = os.path.join(self.tools_path, 'pintail-css.xsl')
         fd = open(cssxsl, 'w')
         fd.writelines([
@@ -593,7 +593,7 @@ class Site:
         xslpath = xslpath.strip()
         if xslpath == '':
             print('FIXME: yelp-xsl not found')
-        os.makedirs(self.tools_path, exist_ok=True)
+        Site._makedirs(self.tools_path)
 
         jsxsl = os.path.join(self.tools_path, 'pintail-js.xsl')
         fd = open(jsxsl, 'w')
@@ -746,6 +746,17 @@ class Site:
         if self.verbose:
             print(tag + (' ' * (6 - len(tag))) + ' ' +
                   path.strip('/') + '/' + name)
+
+    @classmethod
+    def _makedirs(cls, path):
+        # Python's os.makedirs complains if directory modes don't
+        # match just so. I don't care if they match, as long as I
+        # can write.
+        if os.path.exists(path):
+            return
+        Site._makedirs(os.path.dirname(path))
+        if not os.path.exists(path):
+            os.mkdir(path)
 
 
 class Config:
