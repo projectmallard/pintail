@@ -37,16 +37,30 @@ class DuplicatePageException(Exception):
         self.parser = directory
 
 
-class Page:
+class Extendable:
+    @classmethod
+    def iter_subclasses(cls):
+        for cls in cls.__subclasses__():
+            yield cls
+            yield from cls.iter_subclasses()
+
+
+class Page(Extendable):
     def __init__(self, directory, source_file):
         self.site = directory.site
         self.directory = directory
         self.source_file = source_file
         self.source_path = os.path.join(directory.source_path, source_file)
-        self.stage_file = source_file
-        self.stage_path = os.path.join(directory.stage_path, self.stage_file)
         self.target_extension = self.site.config.get('html_extension') or '.html'
         self.page_id = None
+
+    @property
+    def stage_file(self):
+        return self.source_file
+
+    @property
+    def stage_path(self):
+        return os.path.join(self.directory.stage_path, self.stage_file)
 
     @property
     def target_file(self):
@@ -59,11 +73,6 @@ class Page:
     @property
     def site_id(self):
         return self.directory.path + self.page_id
-
-    def build_stage(self):
-        subprocess.call(['xmllint', '--xinclude',
-                         '-o', self.stage_path,
-                         self.source_path])
 
     def get_cache_data(self):
         return None
@@ -79,9 +88,16 @@ class Page:
 class MallardPage(Page):
     def __init__(self, directory, source_file):
         Page.__init__(self, directory, source_file)
-        self._tree = etree.parse(self.source_path)
+        self.stage_page()
+        self._tree = etree.parse(self.stage_path)
         etree.XInclude()(self._tree.getroot())
         self.page_id = self._tree.getroot().get('id')
+
+    def stage_page(self):
+        Site._makedirs(self.directory.stage_path)
+        subprocess.call(['xmllint', '--xinclude',
+                         '-o', self.stage_path,
+                         self.source_path])
 
     def get_cache_data(self):
         def _get_node_cache(node):
@@ -157,7 +173,31 @@ class MallardPage(Page):
         return []
 
 
-class Directory:
+class DucktypePage(MallardPage):
+    def __init__(self, directory, source_file):
+        MallardPage.__init__(self, directory, source_file)
+
+    def stage_page(self):
+        Site._makedirs(self.directory.stage_path)
+        subprocess.call(['ducktype',
+                         '-o', self.stage_path,
+                         self.source_path])
+
+    @property
+    def stage_file(self):
+        if self.source_file.endswith('.duck'):
+            return self.source_file[:-5] + '.page'
+        else:
+            return self.source_file
+
+    @classmethod
+    def get_pages(cls, directory, filename):
+        if filename.endswith('.duck'):
+            return [DucktypePage(directory, filename)]
+        return []
+
+
+class Directory(Extendable):
     def __init__(self, site, path, *, parent=None):
         if not hasattr(self, 'site'):
             self.site = site
@@ -200,7 +240,7 @@ class Directory:
                 if self.site.get_ignore_directory(subpath):
                     continue
                 subdir = None
-                for cls in Directory.__subclasses__():
+                for cls in Directory.iter_subclasses():
                     if cls.is_special_path(self.site, subpath):
                         subdir = cls(self.site, subpath, parent=self)
                         break
@@ -212,7 +252,7 @@ class Directory:
         by_page_id = {}
         for name in os.listdir(self.source_path):
             if os.path.isfile(os.path.join(self.source_path, name)):
-                for cls in Page.__subclasses__():
+                for cls in Page.iter_subclasses():
                     for page in cls.get_pages(self, name):
                         if page.page_id in by_page_id:
                             raise DuplicatePageException(self,
@@ -231,13 +271,6 @@ class Directory:
             yield page
         for subdir in self.directories:
             yield from subdir.iter_pages()
-
-    def build_stage(self):
-        Site._makedirs(self.stage_path)
-        for subdir in self.directories:
-            subdir.build_stage()
-        for page in self.pages:
-            page.build_stage()
 
     def build_html(self):
         Site._makedirs(self.target_path)
@@ -379,6 +412,8 @@ class Site:
     def read_directories(self):
         if self.root is not None:
             return
+        if os.path.exists(self.stage_path):
+            shutil.rmtree(self.stage_path)
         self.root = Directory(self, '/')
         directories = {'/': self.root}
         for directory in self.root.iter_directories():
@@ -388,7 +423,7 @@ class Site:
         for path in configdirs:
             if path not in directories:
                 directory = None
-                for cls in Directory.__subclasses__():
+                for cls in Directory.iter_subclasses():
                     if cls.is_special_path(self, path):
                         directory = cls(self, path)
                         break
@@ -416,7 +451,6 @@ class Site:
 
     def build(self):
         self.read_directories()
-        self.build_stage()
         self.build_cache()
         self.build_xslt()
         self.build_html()
@@ -426,12 +460,6 @@ class Site:
         self.build_files()
         self.build_icons()
         self.build_feeds()
-
-    def build_stage(self):
-        self.read_directories()
-        if os.path.exists(self.stage_path):
-            shutil.rmtree(self.stage_path)
-        self.root.build_stage()
 
     def build_cache(self):
         self.read_directories()
