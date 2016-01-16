@@ -145,8 +145,8 @@ class MallardPage(Page):
         self.site.echo('HTML', self.directory.path, self.target_file)
         subprocess.call(['xsltproc',
                          '--stringparam', 'mal.cache.file', self.site.cache_path,
-                         '--stringparam', 'mal.site.dir', self.directory.path,
-                         '--stringparam', 'mal.site.root',
+                         '--stringparam', 'pintail.site.dir', self.directory.path,
+                         '--stringparam', 'pintail.site.root',
                          self.site.config.get('site_root') or '/',
                          '-o', self.target_path,
                          self.site.xslt_path,
@@ -365,8 +365,8 @@ class Directory(Extendable):
 
             subprocess.call(['xsltproc',
                              '-o', os.path.join(self.target_path, atomfile),
-                             '--stringparam', 'mal.site.dir', self.path,
-                             '--stringparam', 'mal.site.root', root,
+                             '--stringparam', 'pintail.site.dir', self.path,
+                             '--stringparam', 'pintail.site.root', root,
                              '--stringparam', 'feed.exclude_styles',
                              self.site.config.get('feed_exclude_styles', self.path) or '',
                              atomxsl, self.site.cache_path])
@@ -379,6 +379,12 @@ class EmptyDirectory(Directory):
         pass
 
     def read_pages(self):
+        pass
+
+
+class ToolsProvider(Extendable):
+    @classmethod
+    def build_tools(cls, site):
         pass
 
 
@@ -452,7 +458,7 @@ class Site:
     def build(self):
         self.read_directories()
         self.build_cache()
-        self.build_xslt()
+        self.build_tools()
         self.build_html()
         self.build_media()
         self.build_css()
@@ -477,7 +483,7 @@ class Site:
         cache.getroottree().write(self.cache_path,
                                   pretty_print=True)
 
-    def build_xslt(self):
+    def build_tools(self):
         mal2html = subprocess.check_output(['pkg-config',
                                             '--variable', 'mal2html',
                                             'yelp-xsl'],
@@ -506,8 +512,7 @@ class Site:
         fd.write('</xsl:stylesheet>')
         fd.close()
 
-        fd = open(os.path.join(os.path.dirname(self.xslt_path),
-                               'pintail-site.xsl'), 'w')
+        fd = open(os.path.join(self.tools_path, 'pintail-site.xsl'), 'w')
         fd.write(('<xsl:stylesheet' +
                   ' xmlns:xsl="http://www.w3.org/1999/XSL/Transform"' +
                   ' version="1.0">\n' +
@@ -524,6 +529,9 @@ class Site:
                                'site2html.xsl'), 'w', encoding='utf-8')
         fd.write(codecs.decode(site2html, 'utf-8'))
         fd.close()
+
+        for cls in ToolsProvider.iter_subclasses():
+            cls.build_tools(self)
 
     def build_html(self):
         self.read_directories()

@@ -25,10 +25,14 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
                 exclude-result-prefixes="mal str exsl"
                 version="1.0">
 
-<xsl:param name="mal.site.root" select="'/'"/>
-<xsl:param name="mal.site.dir"/>
+<xsl:param name="pintail.site.root" select="'/'"/>
+<xsl:param name="pintail.site.dir"/>
 
-<xsl:variable name="mal.site.locale">
+<!-- For backwards compatibility. Use pintail params instead. -->
+<xsl:param name="mal.site.root" select="$pintail.site.root"/>
+<xsl:param name="mal.site.dir" select="$pintail.site.dir"/>
+
+<xsl:variable name="pintail.site.locale">
   <xsl:choose>
     <xsl:when test="$l10n.locale != ''">
       <xsl:value-of select="$l10n.locale"/>
@@ -39,11 +43,11 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
   </xsl:choose>
 </xsl:variable>
 
-<xsl:param name="mal.link.default_root" select="concat($mal.site.dir, 'index')"/>
-<xsl:param name="html.css.root" select="$mal.site.root"/>
-<xsl:param name="html.js.root" select="$mal.site.root"/>
+<xsl:param name="mal.link.default_root" select="concat($pintail.site.dir, 'index')"/>
+<xsl:param name="html.css.root" select="$pintail.site.root"/>
+<xsl:param name="html.js.root" select="$pintail.site.root"/>
 
-<xsl:template name="mal.site.sitetrail">
+<xsl:template name="pintail.site.sitetrail">
   <xsl:param name="node" select="."/>
   <xsl:param name="xref" select="$node/@xref"/>
   <xsl:variable name="sitetrail" select="str:tokenize($xref, '/')[position() != last()]"/>
@@ -75,9 +79,9 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
   <xsl:param name="node" select="."/>
   <div class="trails">
     <div class="trail">
-      <xsl:call-template name="mal.site.sitetrail">
+      <xsl:call-template name="pintail.site.sitetrail">
         <xsl:with-param name="xref">
-          <xsl:value-of select="$mal.site.dir"/>
+          <xsl:value-of select="$pintail.site.dir"/>
           <xsl:value-of select="$node/@id"/>
         </xsl:with-param>
       </xsl:call-template>
@@ -87,7 +91,7 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 
 <xsl:template name="mal2html.page.linktrails.trail.prefix">
   <xsl:param name="node" select="."/>
-  <xsl:call-template name="mal.site.sitetrail">
+  <xsl:call-template name="pintail.site.sitetrail">
     <xsl:with-param name="node" select="$node"/>
   </xsl:call-template>
 </xsl:template>
@@ -104,9 +108,9 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
       <xsl:value-of select="$xref"/>
     </xsl:when>
     <xsl:otherwise>
-      <xsl:value-of select="$mal.site.root"/>
+      <xsl:value-of select="$pintail.site.root"/>
       <xsl:if test="not(starts-with($xref, '/'))">
-        <xsl:value-of select="substring($mal.site.dir, 2)"/>
+        <xsl:value-of select="substring($pintail.site.dir, 2)"/>
       </xsl:if>
       <xsl:choose>
         <xsl:when test="contains($xref, '#')">
@@ -144,15 +148,15 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
       <xsl:value-of select="$node/@id"/>
     </xsl:when>
     <xsl:when test="contains($node/@id, '#')">
-      <xsl:value-of select="$mal.site.dir"/>
+      <xsl:value-of select="$pintail.site.dir"/>
       <xsl:value-of select="$node/@id"/>
     </xsl:when>
     <xsl:when test="$node/self::mal:section">
-      <xsl:value-of select="$mal.site.dir"/>
+      <xsl:value-of select="$pintail.site.dir"/>
       <xsl:value-of select="concat($node/ancestor::mal:page[1]/@id, '#', $node/@id)"/>
     </xsl:when>
     <xsl:otherwise>
-      <xsl:value-of select="$mal.site.dir"/>
+      <xsl:value-of select="$pintail.site.dir"/>
       <xsl:value-of select="$node/@id"/>
     </xsl:otherwise>
   </xsl:choose>
@@ -168,7 +172,7 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
     <xsl:value-of select="$xref"/>
   </xsl:variable>
   <xsl:if test="not(starts-with($linkid, '/'))">
-    <xsl:value-of select="$mal.site.dir"/>
+    <xsl:value-of select="$pintail.site.dir"/>
   </xsl:if>
   <xsl:value-of select="$linkid"/>
 </xsl:template>
@@ -176,8 +180,8 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 <xsl:template name="html.css">
   <link rel="stylesheet" type="text/css">
     <xsl:attribute name="href">
-      <xsl:value-of select="$mal.site.root"/>
-      <xsl:value-of select="$mal.site.locale"/>
+      <xsl:value-of select="$pintail.site.root"/>
+      <xsl:value-of select="$pintail.site.locale"/>
       <xsl:text>.css</xsl:text>
     </xsl:attribute>
   </link>
@@ -198,8 +202,8 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
   <xsl:variable name="page" select="/mal:page"/>
   <xsl:variable name="links">
     <xsl:for-each select="$mal.cache/mal:page">
-      <xsl:if test="starts-with(@id, $mal.site.dir)">
-        <xsl:variable name="aft" select="substring-after(@id, $mal.site.dir)"/>
+      <xsl:if test="starts-with(@id, $pintail.site.dir)">
+        <xsl:variable name="aft" select="substring-after(@id, $pintail.site.dir)"/>
         <xsl:if test="substring($aft, string-length($aft) - 5) = '/index'">
           <xsl:variable name="linklinkid">
             <xsl:call-template name="mal.link.linkid"/>

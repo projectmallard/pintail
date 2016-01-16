@@ -17,4 +17,5 @@
 # 02111-1307, USA.
 
 from .core import *
+from . import docbook
 from . import git

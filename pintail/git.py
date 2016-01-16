@@ -40,7 +40,7 @@ class GitDirectory(pintail.Directory):
                 p.communicate()
         else:
             self.site.echo('CLONE', self.repo, self.branch)
-            os.makedirs(os.path.join(self.site.pindir, 'git'))
+            pintail.Site._makedirs(os.path.join(self.site.pindir, 'git'))
             p = subprocess.Popen(['git', 'clone', '-q',
                                   '-b', self.branch, '--single-branch',
                                   self.repo, self.repodir],
