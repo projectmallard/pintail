@@ -30,23 +30,17 @@ class DocBookPage(core.Page, core.ToolsProvider):
         self._tree = etree.parse(self.stage_path)
         etree.XInclude()(self._tree.getroot())
         self.page_id = self._tree.getroot().get('id')
+        self.db2html = os.path.join(self.site.tools_path, 'pintail-html-docbook-local.xsl')
 
     @classmethod
     def build_tools(cls, site):
-        db2html = subprocess.check_output(['pkg-config',
-                                           '--variable', 'db2html',
-                                           'yelp-xsl'],
-                                          universal_newlines=True)
-        db2html = db2html.strip()
-        if db2html == '':
-            print('FIXME: db2html not found')
-        core.Site._makedirs(site.tools_path)
+        db2html = os.path.join(site.yelp_xsl_path, 'xslt', 'docbook', 'html', 'db2html.xsl')
 
-        fd = open(os.path.join(site.tools_path, 'pintail-docbook.xsl'), 'w')
+        fd = open(os.path.join(site.tools_path, 'pintail-html-docbook-local.xsl'), 'w')
         fd.write('<xsl:stylesheet' +
                  ' xmlns:xsl="http://www.w3.org/1999/XSL/Transform"' +
                  ' version="1.0">\n' +
-                 '<xsl:import href="pintail-site-docbook.xsl"/>\n')
+                 '<xsl:import href="pintail-html-docbook.xsl"/>\n')
         html_extension = site.config.get('html_extension') or '.html'
         fd.write('<xsl:param name="html.extension" select="' +
                  "'" + html_extension + "'" + '"/>')
@@ -61,7 +55,7 @@ class DocBookPage(core.Page, core.ToolsProvider):
         fd.write('</xsl:stylesheet>')
         fd.close()
 
-        fd = open(os.path.join(site.tools_path, 'pintail-site-docbook.xsl'), 'w')
+        fd = open(os.path.join(site.tools_path, 'pintail-html-docbook.xsl'), 'w')
         fd.write(('<xsl:stylesheet' +
                   ' xmlns:xsl="http://www.w3.org/1999/XSL/Transform"' +
                   ' version="1.0">\n' +
@@ -130,8 +124,7 @@ class DocBookPage(core.Page, core.ToolsProvider):
                          '--stringparam', 'mal.site.root',
                          self.site.config.get('site_root') or '/',
                          '-o', self.target_path,
-                         os.path.join(self.site.tools_path, 'pintail-docbook.xsl'),
-                         self.source_path])
+                         self.db2html, self.source_path])
 
     def get_media(self):
         return []

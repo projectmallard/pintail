@@ -45,6 +45,12 @@ class Extendable:
             yield from cls.iter_subclasses()
 
 
+class ToolsProvider(Extendable):
+    @classmethod
+    def build_tools(cls, site):
+        pass
+
+
 class Page(Extendable):
     def __init__(self, directory, source_file):
         self.site = directory.site
@@ -85,13 +91,47 @@ class Page(Extendable):
         return []
 
 
-class MallardPage(Page):
+class MallardPage(Page, ToolsProvider):
     def __init__(self, directory, source_file):
         Page.__init__(self, directory, source_file)
         self.stage_page()
         self._tree = etree.parse(self.stage_path)
         etree.XInclude()(self._tree.getroot())
         self.page_id = self._tree.getroot().get('id')
+        self.mal2html = os.path.join(self.site.tools_path, 'pintail-html-mallard-local.xsl')
+
+    @classmethod
+    def build_tools(cls, site):
+        mal2html = os.path.join(site.yelp_xsl_path, 'xslt', 'mallard', 'html', 'mal2html.xsl')
+
+        fd = open(os.path.join(site.tools_path, 'pintail-html-mallard-local.xsl'), 'w')
+        fd.write('<xsl:stylesheet' +
+                 ' xmlns:xsl="http://www.w3.org/1999/XSL/Transform"' +
+                 ' version="1.0">\n' +
+                 '<xsl:import href="pintail-html-mallard.xsl"/>\n')
+        html_extension = site.config.get('html_extension') or '.html'
+        fd.write('<xsl:param name="html.extension" select="' +
+                 "'" + html_extension + "'" + '"/>\n')
+        link_extension = site.config.get('link_extension')
+        if link_extension is not None:
+            fd.write('<xsl:param name="mal.link.extension" select="' +
+                     "'" + link_extension + "'" + '"/>\n')
+        custom_xsl = site.config.get('custom_xsl')
+        if custom_xsl is not None:
+            custom_xsl = os.path.join(site.topdir, custom_xsl)
+            fd.write('<xsl:include href="%s"/>\n' % custom_xsl)
+        fd.write('</xsl:stylesheet>')
+        fd.close()
+
+        fd = open(os.path.join(site.tools_path, 'pintail-html-mallard.xsl'), 'w')
+        fd.write(('<xsl:stylesheet' +
+                  ' xmlns:xsl="http://www.w3.org/1999/XSL/Transform"' +
+                  ' version="1.0">\n' +
+                  '<xsl:import href="%s"/>\n' +
+                  '<xsl:include href="%s"/>\n' +
+                  '</xsl:stylesheet>\n')
+                 % (mal2html, 'pintail-html.xsl'))
+        fd.close()
 
     def stage_page(self):
         Site._makedirs(self.directory.stage_path)
@@ -149,8 +189,7 @@ class MallardPage(Page):
                          '--stringparam', 'pintail.site.root',
                          self.site.config.get('site_root') or '/',
                          '-o', self.target_path,
-                         self.site.xslt_path,
-                         self.stage_path])
+                         self.mal2html, self.stage_path])
 
     def get_media(self):
         refs = set()
@@ -347,11 +386,11 @@ class Directory(Extendable):
             fd.write('<xsl:import href="site2atom.xsl"/>\n')
             html_extension = self.site.config.get('html_extension') or '.html'
             fd.write('<xsl:param name="html.extension" select="' +
-                     "'" + html_extension + "'" + '"/>')
+                     "'" + html_extension + "'" + '"/>\n')
             link_extension = self.site.config.get('link_extension')
             if link_extension is not None:
                 fd.write('<xsl:param name="mal.link.extension" select="' +
-                         "'" + link_extension + "'" + '"/>')
+                         "'" + link_extension + "'" + '"/>\n')
             custom_xsl = self.site.config.get('custom_xsl')
             if custom_xsl is not None:
                 custom_xsl = os.path.join(self.site.topdir, custom_xsl)
@@ -382,12 +421,6 @@ class EmptyDirectory(Directory):
         pass
 
 
-class ToolsProvider(Extendable):
-    @classmethod
-    def build_tools(cls, site):
-        pass
-
-
 class Site:
     def __init__(self, config):
         self.topdir = os.path.dirname(config)
@@ -397,11 +430,13 @@ class Site:
         self.tools_path = os.path.join(self.pindir, 'tools')
 
         self.cache_path = os.path.join(self.tools_path, 'pintail.cache')
-        self.xslt_path = os.path.join(self.tools_path, 'pintail.xsl')
-
         self.root = None
         self.config = Config(self, config)
         self.verbose = False
+
+        self.yelp_xsl_branch = self.config.get('yelp_xsl_branch') or 'master'
+        self.yelp_xsl_dir = 'yelp-xsl@' + self.yelp_xsl_branch.replace('/', '@')
+        self.yelp_xsl_path = os.path.join(self.tools_path, self.yelp_xsl_dir)
 
     @classmethod
     def init_site(cls, directory):
@@ -484,49 +519,33 @@ class Site:
                                   pretty_print=True)
 
     def build_tools(self):
-        mal2html = subprocess.check_output(['pkg-config',
-                                            '--variable', 'mal2html',
-                                            'yelp-xsl'],
-                                           universal_newlines=True)
-        mal2html = mal2html.strip()
-        if mal2html == '':
-            print('FIXME: mal2html not found')
         Site._makedirs(self.tools_path)
-
-        fd = open(self.xslt_path, 'w')
-        fd.write('<xsl:stylesheet' +
-                 ' xmlns:xsl="http://www.w3.org/1999/XSL/Transform"' +
-                 ' version="1.0">\n' +
-                 '<xsl:import href="pintail-site.xsl"/>\n')
-        html_extension = self.config.get('html_extension') or '.html'
-        fd.write('<xsl:param name="html.extension" select="' +
-                 "'" + html_extension + "'" + '"/>')
-        link_extension = self.config.get('link_extension')
-        if link_extension is not None:
-            fd.write('<xsl:param name="mal.link.extension" select="' +
-                     "'" + link_extension + "'" + '"/>')
-        custom_xsl = self.config.get('custom_xsl')
-        if custom_xsl is not None:
-            custom_xsl = os.path.join(self.topdir, custom_xsl)
-            fd.write('<xsl:include href="%s"/>\n' % custom_xsl)
-        fd.write('</xsl:stylesheet>')
-        fd.close()
-
-        fd = open(os.path.join(self.tools_path, 'pintail-site.xsl'), 'w')
-        fd.write(('<xsl:stylesheet' +
-                  ' xmlns:xsl="http://www.w3.org/1999/XSL/Transform"' +
-                  ' version="1.0">\n' +
-                  '<xsl:import href="%s"/>\n' +
-                  '<xsl:include href="%s"/>\n' +
-                  '</xsl:stylesheet>\n')
-                 % (mal2html,
-                    'site2html.xsl'))
-        fd.close()
+        if os.path.exists(self.yelp_xsl_path):
+            self.echo('UPDATE', 'https://git.gnome.org/browse/yelp-xsl', self.yelp_xsl_branch)
+            p = subprocess.Popen(['git', 'pull', '-q', '-r', 'origin', self.yelp_xsl_branch],
+                                 cwd=self.tools_path)
+            p.communicate()
+        else:
+            self.echo('CLONE', 'https://git.gnome.org/browse/yelp-xsl', self.yelp_xsl_branch)
+            p = subprocess.Popen(['git', 'clone', '-q',
+                                  '-b', self.yelp_xsl_branch, '--single-branch',
+                                  'https://git.gnome.org/browse/yelp-xsl',
+                                  self.yelp_xsl_dir],
+                                 cwd=self.tools_path)
+            p.communicate()
+        self.echo('BUILD', 'https://git.gnome.org/browse/yelp-xsl', self.yelp_xsl_branch)
+        p = subprocess.Popen([os.path.join(self.yelp_xsl_path, 'autogen.sh')],
+                             cwd=self.yelp_xsl_path,
+                             stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
+        p.communicate()
+        p = subprocess.Popen(['make'], cwd=self.yelp_xsl_path, stdout=subprocess.DEVNULL)
+        p.communicate()
 
         from pkg_resources import resource_string
-        site2html = resource_string(__name__, 'site2html.xsl')
-        fd = open(os.path.join(os.path.dirname(self.xslt_path),
-                               'site2html.xsl'), 'w', encoding='utf-8')
+        site2html = resource_string(__name__, 'pintail-html.xsl')
+        fd = open(os.path.join(self.tools_path, 'pintail-html.xsl'),
+                  'w', encoding='utf-8')
         fd.write(codecs.decode(site2html, 'utf-8'))
         fd.close()
 
@@ -609,26 +628,14 @@ class Site:
 
     def build_js(self):
         self.read_directories()
-        jspath = subprocess.check_output(['pkg-config',
-                                          '--variable', 'jsdir',
-                                          'yelp-xsl'],
-                                         universal_newlines=True)
-        jspath = jspath.strip()
-        if jspath == '':
-            print('FIXME: yelp-xsl not found')
-        for js in ['jquery.js', 'jquery.syntax.js', 'jquery.syntax.core.js',
-                   'jquery.syntax.layout.yelp.js']:
-            self.echo('JS', '/', js)
-            shutil.copyfile(os.path.join(jspath, js),
-                            os.path.join(self.target_path, js))
+        jspath = os.path.join(self.yelp_xsl_path, 'js')
 
-        xslpath = subprocess.check_output(['pkg-config',
-                                           '--variable', 'xsltdir',
-                                           'yelp-xsl'],
-                                          universal_newlines=True)
-        xslpath = xslpath.strip()
-        if xslpath == '':
-            print('FIXME: yelp-xsl not found')
+        if os.path.exists(os.path.join(jspath, 'jquery.js')):
+            self.echo('JS', '/', 'jquery.js')
+            shutil.copyfile(os.path.join(jspath, 'jquery.js'),
+                            os.path.join(self.target_path, 'jquery.js'))
+
+        xslpath = os.path.join(self.yelp_xsl_path, 'xslt')
         Site._makedirs(self.tools_path)
 
         jsxsl = os.path.join(self.tools_path, 'pintail-js.xsl')
@@ -661,55 +668,67 @@ class Site:
                          '-o', os.path.join(self.target_path, 'yelp.js'),
                          jsxsl, self.cache_path])
 
-        jsxsl = os.path.join(self.tools_path, 'pintail-js-brushes.xsl')
-        fd = open(jsxsl, 'w')
-        fd.writelines([
-            '<xsl:stylesheet',
-            ' xmlns:xsl="http://www.w3.org/1999/XSL/Transform"',
-            ' xmlns:mal="http://projectmallard.org/1.0/"',
-            ' xmlns:cache="http://projectmallard.org/cache/1.0/"',
-            ' xmlns:exsl="http://exslt.org/common"',
-            ' xmlns:html="http://www.w3.org/1999/xhtml"',
-            ' extension-element-prefixes="exsl"',
-            ' version="1.0">\n',
-            '<xsl:import href="', xslpath, '/mallard/html/mal2xhtml.xsl"/>\n'
-        ])
-        custom_xsl = self.config.get('custom_xsl')
-        if custom_xsl is not None:
-            custom_xsl = os.path.join(self.topdir, custom_xsl)
-            fd.write('<xsl:include href="%s"/>\n' % custom_xsl)
-        fd.writelines([
-            '<xsl:output method="text"/>\n',
-            '<xsl:template match="/">\n',
-            '<xsl:for-each select="/cache:cache/mal:page">\n',
-            '<xsl:for-each select="document(@cache:href)//mal:code[@mime]">\n',
-            '  <xsl:variable name="out">\n',
-            '   <xsl:call-template name="mal2html.pre"/>\n',
-            '  </xsl:variable>\n',
-            '  <xsl:variable name="class">\n',
-            '   <xsl:value-of select="exsl:node-set($out)/*/html:pre[last()]/@class"/>\n',
-            '  </xsl:variable>\n',
-            '  <xsl:if test="starts-with($class, ',
-            "'contents syntax brush-'", ')">\n',
-            '   <xsl:text>jquery.syntax.brush.</xsl:text>\n',
-            '   <xsl:value-of select="substring-after($class, ',
-            "'contents syntax brush-'", ')"/>\n',
-            '   <xsl:text>.js&#x000A;</xsl:text>\n',
-            '  </xsl:if>\n',
-            '</xsl:for-each>\n',
-            '</xsl:for-each>\n',
-            '</xsl:template>\n',
-            '</xsl:stylesheet>'
-        ])
-        fd.close()
+        if os.path.exists(os.path.join(jspath, 'highlight.pack.js')):
+            self.echo('JS', '/', 'highlight.pack.js')
+            shutil.copyfile(os.path.join(jspath, 'highlight.pack.js'),
+                            os.path.join(self.target_path, 'highlight.pack.js'))
 
-        brushes = subprocess.check_output(['xsltproc',
-                                           jsxsl, self.cache_path],
-                                          universal_newlines=True)
-        for brush in brushes.split():
-            self.echo('JS', '/', brush)
-            shutil.copyfile(os.path.join(jspath, brush),
-                            os.path.join(self.target_path, brush))
+        if os.path.exists(os.path.join(jspath, 'jquery.syntax.js')):
+            for js in ['jquery.syntax.js', 'jquery.syntax.core.js',
+                       'jquery.syntax.layout.yelp.js']:
+                self.echo('JS', '/', js)
+                shutil.copyfile(os.path.join(jspath, js),
+                                os.path.join(self.target_path, js))
+
+            jsxsl = os.path.join(self.tools_path, 'pintail-js-brushes.xsl')
+            fd = open(jsxsl, 'w')
+            fd.writelines([
+                '<xsl:stylesheet',
+                ' xmlns:xsl="http://www.w3.org/1999/XSL/Transform"',
+                ' xmlns:mal="http://projectmallard.org/1.0/"',
+                ' xmlns:cache="http://projectmallard.org/cache/1.0/"',
+                ' xmlns:exsl="http://exslt.org/common"',
+                ' xmlns:html="http://www.w3.org/1999/xhtml"',
+                ' extension-element-prefixes="exsl"',
+                ' version="1.0">\n',
+                '<xsl:import href="', xslpath, '/mallard/html/mal2xhtml.xsl"/>\n'
+            ])
+            custom_xsl = self.config.get('custom_xsl')
+            if custom_xsl is not None:
+                custom_xsl = os.path.join(self.topdir, custom_xsl)
+                fd.write('<xsl:include href="%s"/>\n' % custom_xsl)
+            fd.writelines([
+                '<xsl:output method="text"/>\n',
+                '<xsl:template match="/">\n',
+                '<xsl:for-each select="/cache:cache/mal:page">\n',
+                '<xsl:for-each select="document(@cache:href)//mal:code[@mime]">\n',
+                '  <xsl:variable name="out">\n',
+                '   <xsl:call-template name="mal2html.pre"/>\n',
+                '  </xsl:variable>\n',
+                '  <xsl:variable name="class">\n',
+                '   <xsl:value-of select="exsl:node-set($out)/*/html:pre[last()]/@class"/>\n',
+                '  </xsl:variable>\n',
+                '  <xsl:if test="starts-with($class, ',
+                "'contents syntax brush-'", ')">\n',
+                '   <xsl:text>jquery.syntax.brush.</xsl:text>\n',
+                '   <xsl:value-of select="substring-after($class, ',
+                "'contents syntax brush-'", ')"/>\n',
+                '   <xsl:text>.js&#x000A;</xsl:text>\n',
+                '  </xsl:if>\n',
+                '</xsl:for-each>\n',
+                '</xsl:for-each>\n',
+                '</xsl:template>\n',
+                '</xsl:stylesheet>'
+            ])
+            fd.close()
+
+            brushes = subprocess.check_output(['xsltproc',
+                                               jsxsl, self.cache_path],
+                                              universal_newlines=True)
+            for brush in brushes.split():
+                self.echo('JS', '/', brush)
+                shutil.copyfile(os.path.join(jspath, brush),
+                                os.path.join(self.target_path, brush))
 
     def build_files(self):
         self.read_directories()
