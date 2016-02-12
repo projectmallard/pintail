@@ -562,13 +562,7 @@ class Site:
 
     def build_css(self):
         self.read_directories()
-        xslpath = subprocess.check_output(['pkg-config',
-                                           '--variable', 'xsltdir',
-                                           'yelp-xsl'],
-                                          universal_newlines=True)
-        xslpath = xslpath.strip()
-        if xslpath == '':
-            print('FIXME: yelp-xsl not found')
+        xslpath = os.path.join(self.yelp_xsl_path, 'xslt')
 
         Site._makedirs(self.tools_path)
         cssxsl = os.path.join(self.tools_path, 'pintail-css.xsl')
