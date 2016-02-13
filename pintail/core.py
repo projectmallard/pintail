@@ -521,10 +521,11 @@ class Site:
     def build_tools(self):
         Site._makedirs(self.tools_path)
         if os.path.exists(self.yelp_xsl_path):
-            self.echo('UPDATE', 'https://git.gnome.org/browse/yelp-xsl', self.yelp_xsl_branch)
-            p = subprocess.Popen(['git', 'pull', '-q', '-r', 'origin', self.yelp_xsl_branch],
-                                 cwd=self.tools_path)
-            p.communicate()
+            if self.config._update:
+                self.echo('UPDATE', 'https://git.gnome.org/browse/yelp-xsl', self.yelp_xsl_branch)
+                p = subprocess.Popen(['git', 'pull', '-q', '-r', 'origin', self.yelp_xsl_branch],
+                                     cwd=self.tools_path)
+                p.communicate()
         else:
             self.echo('CLONE', 'https://git.gnome.org/browse/yelp-xsl', self.yelp_xsl_branch)
             p = subprocess.Popen(['git', 'clone', '-q',
@@ -814,6 +815,7 @@ class Config:
         self._config = configparser.ConfigParser()
         self._config.read(filename)
         self._local = False
+        self._update = True
 
     def get(self, key, path=None):
         if path is None:
@@ -828,6 +830,9 @@ class Config:
         self._config.set('pintail', 'site_root',
                          self._site.target_path + '/')
         self._local = True
+
+    def set_update(self, update):
+        self._update = update
 
     def get_directories(self):
         return [d for d in self._config.sections()

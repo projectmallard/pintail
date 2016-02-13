@@ -39,6 +39,9 @@ if __name__ == '__main__':
     common.add_argument('-v', '--verbose',
                         help='report on the files being created',
                         action='store_true')
+    common.add_argument('--no-update',
+                        help='do not update from remote repositories',
+                        action='store_true')
 
     subparser = subparsers.add_parser('build',
                                       help='build the entire site',
@@ -81,6 +84,9 @@ if __name__ == '__main__':
 
     if args.local:
         site.config.set_local()
+
+    if args.no_update:
+        site.config.set_update(False)
 
     if args.output is not None:
         site.target_path = os.path.abspath(args.output)

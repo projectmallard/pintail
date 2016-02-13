@@ -32,7 +32,7 @@ class GitDirectory(pintail.Directory):
                         self.branch.replace('/', '!'))
         self.absrepodir = os.path.join(self.site.pindir, 'git', self.repodir)
         if os.path.exists(self.absrepodir):
-            if self.site.config.get('git_update', self.path) != 'false':
+            if self.config._update and self.site.config.get('git_update', self.path) != 'false':
                 self.site.echo('UPDATE', self.repo, self.branch)
                 p = subprocess.Popen(['git', 'pull', '-q', '-r',
                                       'origin', self.branch],
