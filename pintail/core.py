@@ -195,7 +195,7 @@ class MallardPage(Page, ToolsProvider):
         refs = set()
         def _accumulate_refs(node):
             src = node.get('src', None)
-            if src is not None and ':' not in src:
+            if src is not None and ':' not in src and src != '#':
                 refs.add(src)
             href = node.get('href', None)
             if href is not None and ':' not in href:
