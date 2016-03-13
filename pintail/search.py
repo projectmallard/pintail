@@ -1,5 +1,5 @@
 # pintail - Build static sites from collections of Mallard documents
-# Copyright (c) 2015 Shaun McCance <shaunm@gnome.org>
+# Copyright (c) 2016 Shaun McCance <shaunm@gnome.org>
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU Lesser General Public License as published by the Free
@@ -16,7 +16,19 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 # 02111-1307, USA.
 
-from .core import *
-from . import docbook
-from . import git
-from . import search
+import pintail
+
+class SearchProvider(pintail.Extendable):
+    def __init__(self, site):
+        self.site = site
+
+    def index_site(self):
+        for subdir in self.site.root.iter_directories():
+            self.index_directory(subdir)
+
+    def index_directory(self, directory):
+        for page in directory.pages:
+            self.index_page(page)
+
+    def index_page(self, page):
+        pass

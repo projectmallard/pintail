@@ -18,7 +18,9 @@
 
 import codecs
 import configparser
+import copy
 import glob
+import importlib
 import os
 import shutil
 import subprocess
@@ -82,6 +84,21 @@ class Page(Extendable):
 
     def get_cache_data(self):
         return None
+
+    def get_media(self):
+        return []
+
+    def get_title(self):
+        return ''
+
+    def get_desc(self):
+        return ''
+
+    def get_keywords(self):
+        return []
+
+    def get_content(self):
+        return ''
 
     def build_html(self):
         return
@@ -160,7 +177,7 @@ class MallardPage(Page, ToolsProvider):
                         if infochild.tag == MAL_NS + 'link':
                             xref = infochild.get('xref', None)
                             if xref is None or xref.startswith('/'):
-                                info.append(infochild)
+                                info.append(copy.deepcopy(infochild))
                             else:
                                 link = etree.Element(infochild.tag)
                                 link.set('xref', self.directory.path + xref)
@@ -169,11 +186,11 @@ class MallardPage(Page, ToolsProvider):
                                         link.set(attr, infochild.get(attr))
                                 for linkchild in infochild:
                                     link.append(linkchild)
-                                info.append(link)
+                                info.append(copy.deepcopy(link))
                         else:
-                            info.append(infochild)
+                            info.append(copy.deepcopy(infochild))
                 if child.tag == MAL_NS + 'title':
-                    ret.append(child)
+                    ret.append(copy.deepcopy(child))
                 elif child.tag == MAL_NS + 'section':
                     ret.append(_get_node_cache(child))
             return ret
@@ -204,6 +221,20 @@ class MallardPage(Page, ToolsProvider):
                 _accumulate_refs(child)
         _accumulate_refs(self._tree.getroot())
         return refs
+
+    def get_title(self):
+        namespaces = {'mal': 'http://projectmallard.org/1.0/'}
+        res = self._tree.xpath('/mal:page/mal:info/mal:title[@type="text"][@role="search"]',
+                               namespaces=namespaces)
+        if len(res) == 0:
+            res = self._tree.xpath('/mal:page/mal:info/mal:title[@type="text"][not(@role)]',
+                                   namespaces=namespaces)
+        if len(res) == 0:
+            res = self._tree.xpath('/mal:page/mal:title', namespaces=namespaces)
+        if len(res) == 0:
+            return ''
+        else:
+            return res[-1].xpath('string(.)')
 
     @classmethod
     def get_pages(cls, directory, filename):
@@ -438,6 +469,14 @@ class Site:
         self.yelp_xsl_dir = 'yelp-xsl@' + self.yelp_xsl_branch.replace('/', '@')
         self.yelp_xsl_path = os.path.join(self.tools_path, self.yelp_xsl_dir)
 
+        self.search_provider = None
+        search = self.config.get('search_provider')
+        if search is not None:
+            dot = search.rindex('.')
+            searchmod = importlib.import_module(search[:dot])
+            searchcls = getattr(searchmod, search[dot+1:])
+            self.search_provider = searchcls(self)
+
     @classmethod
     def init_site(cls, directory):
         cfgfile = os.path.join(directory, 'pintail.cfg')
@@ -501,6 +540,7 @@ class Site:
         self.build_files()
         self.build_icons()
         self.build_feeds()
+        self.build_search()
 
     def build_cache(self):
         self.read_directories()
@@ -732,6 +772,11 @@ class Site:
     def build_feeds(self):
         self.read_directories()
         self.root.build_feeds()
+
+    def build_search(self):
+        self.read_directories()
+        if self.search_provider is not None:
+            self.search_provider.index_site()
 
     def build_icons(self):
         xslpath = subprocess.check_output(['pkg-config',
