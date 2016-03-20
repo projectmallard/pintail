@@ -23,27 +23,68 @@ import pintail
 
 import elasticsearch
 
+analyzers = {
+    'en': 'english'
+}
+
 class ElasticSearchProvider(pintail.search.SearchProvider):
     def __init__(self, site):
         pintail.search.SearchProvider.__init__(self, site)
         self.epoch = str(uuid.uuid1())
         elhost = self.site.config.get('search_elastic_host')
         self.elastic = elasticsearch.Elasticsearch([elhost])
+        self._indexes = []
+
+    def create_index(self, lang):
+        if lang in self._indexes:
+            return
+        self._indexes.append(lang)
+
+        analyzer = analyzers.get(lang, 'english')
+        self.elastic.indices.create(
+            index=(self.epoch + '@' + lang),
+            body={
+                'mappings': {
+                    'page': {
+                        'properties': {
+                            'path': {'type': 'string', 'index': 'not_analyzed'},
+                            'lang': {'type': 'string', 'index': 'not_analyzed'},
+                            'domain': {'type': 'string', 'index': 'not_analyzed'},
+                            'title': {'type': 'string', 'analyzer': analyzer},
+                            'desc': {'type': 'string', 'analyzer': analyzer},
+                            'keywords': {'type': 'string', 'analyzer': analyzer},
+                            'content': {'type': 'string', 'analyzer': analyzer}
+                        }
+                    }
+                }
+            })
 
     def index_page(self, page):
         self.site.echo('INDEX', page.directory.path, page.target_file)
+
+        lang = 'en'
+        self.create_index(lang)
 
         title = page.get_title()
         desc = page.get_desc()
         keywords = page.get_keywords()
         content = page.get_content()
 
-        lang = 'en'
         elid = urllib.parse.quote(page.site_id, safe='')
         elindex = self.epoch + '@' + lang
+
+        domains = []
+        for domain in page.directory.get_search_domains():
+            if isinstance(domain, list):
+                if domain[0] == page.page_id:
+                    domains.append(domain[1])
+            else:
+                domains.append(domain)
+
         self.elastic.index(index=elindex, doc_type='page', id=elid, body={
             'path': page.site_id,
             'lang': lang,
+            'domain': domains,
             'title': title,
             'desc': desc,
             'keywords': keywords,

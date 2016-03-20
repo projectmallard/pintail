@@ -95,7 +95,7 @@ class Page(Extendable):
         return ''
 
     def get_keywords(self):
-        return []
+        return ''
 
     def get_content(self):
         return ''
@@ -224,8 +224,11 @@ class MallardPage(Page, ToolsProvider):
 
     def get_title(self):
         namespaces = {'mal': 'http://projectmallard.org/1.0/'}
-        res = self._tree.xpath('/mal:page/mal:info/mal:title[@type="text"][@role="search"]',
+        res = self._tree.xpath('/mal:page/mal:info/mal:title[@type="search"]',
                                namespaces=namespaces)
+        if len(res) == 0:
+            res = self._tree.xpath('/mal:page/mal:info/mal:title[@type="text"][@role="search"]',
+                                   namespaces=namespaces)
         if len(res) == 0:
             res = self._tree.xpath('/mal:page/mal:info/mal:title[@type="text"][not(@role)]',
                                    namespaces=namespaces)
@@ -235,6 +238,24 @@ class MallardPage(Page, ToolsProvider):
             return ''
         else:
             return res[-1].xpath('string(.)')
+
+    def get_desc(self):
+        namespaces = {'mal': 'http://projectmallard.org/1.0/'}
+        res = self._tree.xpath('/mal:page/mal:info/mal:desc[@type="search"]',
+                               namespaces=namespaces)
+        if len(res) == 0:
+            res = self._tree.xpath('/mal:page/mal:info/mal:desc[@type="text"][@role="search"]',
+                                   namespaces=namespaces)
+        if len(res) == 0:
+            res = self._tree.xpath('/mal:page/mal:info/mal:desc[@type="text"][not(@role)]',
+                                   namespaces=namespaces)
+        if len(res) == 0:
+            res = self._tree.xpath('/mal:page/mal:info/mal:desc[not(@type)]', namespaces=namespaces)
+        if len(res) == 0:
+            return ''
+        else:
+            return res[-1].xpath('string(.)')
+
 
     @classmethod
     def get_pages(cls, directory, filename):
@@ -279,6 +300,7 @@ class Directory(Extendable):
             self.directories = []
         if not hasattr(self, 'pages'):
             self.pages = []
+        self._search_domains = None
 
         self.read_directories()
         self.read_pages()
@@ -341,6 +363,40 @@ class Directory(Extendable):
             yield page
         for subdir in self.directories:
             yield from subdir.iter_pages()
+
+    def get_search_domains(self):
+        if self._search_domains is not None:
+            return self._search_domains
+
+        domains = self.site.config.get('search_domain', self.path)
+        if domains is None:
+            domains = 'parent'
+        domains = domains.split()
+
+        def _resolve(domain):
+            if domain.startswith('/'):
+                return domain
+            elif domain == 'self':
+                return self.path
+            elif domain == 'global':
+                return '/'
+            elif self.parent is None:
+                return '/'
+            else:
+                return self.parent.get_search_domains()[0]
+
+        for i in range(len(domains)):
+            if ':' in domains[i]:
+                domains[i] = domains[i].split(':', 1)
+                domains[i][1] = _resolve(domains[i][1])
+            else:
+                domains[i] = _resolve(domains[i])
+
+        if isinstance(domains[0], list):
+            domains.prepend(self.parent.get_search_domains[0])
+
+        self._search_domains = domains
+        return self._search_domains
 
     def build_html(self):
         Site._makedirs(self.target_path)
