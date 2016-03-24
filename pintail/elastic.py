@@ -23,11 +23,47 @@ import pintail
 
 import elasticsearch
 
-analyzers = {
-    'en': 'english'
-}
-
 class ElasticSearchProvider(pintail.search.SearchProvider):
+    analyzers = {
+        'ar': 'arabic',
+        'bg': 'bulgarian',
+        'ca': 'catalan',
+        'ckb': 'sorani',
+        'cs': 'czech',
+        'da': 'danish',
+        'de': 'german',
+        'el': 'greek',
+        'en': 'english',
+        'es': 'spanish',
+        'eu': 'basque',
+        'fa': 'persian',
+        'fi': 'finnish',
+        'fr': 'french',
+        'ga': 'irish',
+        'gl': 'galician',
+        'hi': 'hindi',
+        'hu': 'hungarian',
+        'hy': 'armenian',
+        'id': 'indonesian',
+        'it': 'italian',
+        'ja': 'cjk',
+        'ko': 'cjk',
+        'lt': 'lithuanian',
+        'lv': 'latvian',
+        'nb': 'norwegian',
+        'nl': 'dutch',
+        'nn': 'norwegian',
+        'no': 'norwegian',
+        'pt': 'portuguese',
+        'pt-br': 'brazilian',
+        'ro': 'romanian',
+        'ru': 'russian',
+        'sv': 'swedish',
+        'th': 'thai',
+        'tr': 'turkish',
+        'zh': 'cjk',
+    }
+
     def __init__(self, site):
         pintail.search.SearchProvider.__init__(self, site)
         self.epoch = str(uuid.uuid1())
@@ -35,12 +71,20 @@ class ElasticSearchProvider(pintail.search.SearchProvider):
         self.elastic = elasticsearch.Elasticsearch([elhost])
         self._indexes = []
 
+    def get_analyzer(self, lang):
+        # FIXME: if POSIX code, convert to BCP47
+        if lang.lower() in ElasticSearchProvider.analyzers:
+            return ElasticSearchProvider.analyzers[lang.lower()]
+        if '-' in lang:
+            return ElasticSearchProvider.get_analyzer(lang[:lang.rindex('-')])
+        return 'english'
+
     def create_index(self, lang):
         if lang in self._indexes:
             return
         self._indexes.append(lang)
 
-        analyzer = analyzers.get(lang, 'english')
+        analyzer = self.get_analyzer(lang)
         self.elastic.indices.create(
             index=(self.epoch + '@' + lang),
             body={
