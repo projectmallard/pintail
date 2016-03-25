@@ -27,6 +27,8 @@ class SearchProvider(pintail.Extendable):
             self.index_directory(subdir)
 
     def index_directory(self, directory):
+        if not self.site.get_dir_filter(directory):
+            return
         for page in directory.pages:
             self.index_page(page)
 

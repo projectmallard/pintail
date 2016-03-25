@@ -46,6 +46,7 @@ if __name__ == '__main__':
     subparser = subparsers.add_parser('build',
                                       help='build the entire site',
                                       parents=[common])
+    subparser.add_argument('dirs', nargs='*')
 
     subparser = subparsers.add_parser('css',
                                       help='rebuild CSS resources',
@@ -59,8 +60,10 @@ if __name__ == '__main__':
                                       help='rebuild Atom feeds',
                                       parents=[common])
 
-    subparser = subparsers.add_parser('files', help='rebuild extra files')
-    subparser.add_argument('--local', action='store_true')
+    subparser = subparsers.add_parser('files',
+                                      help='rebuild extra files',
+                                      parents=[common])
+    subparser.add_argument('dirs', nargs='*')
 
     args = parser.parse_args()
 
@@ -90,6 +93,8 @@ if __name__ == '__main__':
 
     if args.output is not None:
         site.target_path = os.path.abspath(args.output)
+
+    site.set_filter_dirs(args.dirs)
 
     if args.command == 'build':
         site.build()

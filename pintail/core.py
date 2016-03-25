@@ -399,16 +399,20 @@ class Directory(Extendable):
         return self._search_domains
 
     def build_html(self):
-        Site._makedirs(self.target_path)
         for subdir in self.directories:
             subdir.build_html()
+        if not self.site.get_dir_filter(self):
+            return
+        Site._makedirs(self.target_path)
         for page in self.pages:
             page.build_html()
 
     def build_media(self):
-        Site._makedirs(self.target_path)
         for subdir in self.directories:
             subdir.build_media()
+        if not self.site.get_dir_filter(self):
+            return
+        Site._makedirs(self.target_path)
         media = set()
         for page in self.pages:
             media.update(page.get_media())
@@ -424,6 +428,10 @@ class Directory(Extendable):
             shutil.copyfile(source, target)
 
     def build_files(self):
+        for subdir in self.directories:
+            subdir.build_files()
+        if not self.site.get_dir_filter(self):
+            return
         Site._makedirs(self.stage_path)
         globs = self.site.config.get('extra_files', self.path)
         if globs is not None:
@@ -437,10 +445,12 @@ class Directory(Extendable):
                     shutil.copyfile(fname,
                                     os.path.join(self.target_path,
                                                  os.path.basename(fname)))
-        for subdir in self.directories:
-            subdir.build_files()
 
     def build_feeds(self):
+        for subdir in self.directories:
+            subdir.build_feeds()
+        if not self.site.get_dir_filter(self):
+            return
         atomfile = self.site.config.get('feed_atom', self.path)
         if atomfile is not None:
             self.site.echo('ATOM', self.path, atomfile)
@@ -496,8 +506,6 @@ class Directory(Extendable):
                              '--stringparam', 'feed.exclude_styles',
                              self.site.config.get('feed_exclude_styles', self.path) or '',
                              atomxsl, self.site.cache_path])
-        for subdir in self.directories:
-            subdir.build_feeds()
 
 
 class EmptyDirectory(Directory):
@@ -525,6 +533,8 @@ class Site:
         self.yelp_xsl_dir = 'yelp-xsl@' + self.yelp_xsl_branch.replace('/', '@')
         self.yelp_xsl_path = os.path.join(self.tools_path, self.yelp_xsl_dir)
 
+        self._filter_dirs = []
+
         self.search_provider = None
         search = self.config.get('search_provider')
         if search is not None:
@@ -544,6 +554,23 @@ class Site:
         fd = open(cfgfile, 'w')
         fd.write(codecs.decode(sample, 'utf-8'))
         fd.close()
+
+    def set_filter_dirs(self, dirs):
+        self._filter_dirs = []
+        if dirs is None:
+            return
+        for fdir in dirs:
+            if not(fdir.startswith('/')):
+                fdir = '/' + fdir
+            if not(fdir.endswith('/')):
+                fdir = fdir + '/'
+            self._filter_dirs.append(fdir)
+
+    def get_dir_filter(self, directory):
+        for fdir in self._filter_dirs:
+            if directory.path.startswith(fdir):
+                return True
+        return False
 
     def read_directories(self):
         if self.root is not None:
@@ -591,12 +618,13 @@ class Site:
         self.build_tools()
         self.build_html()
         self.build_media()
-        self.build_css()
-        self.build_js()
         self.build_files()
-        self.build_icons()
         self.build_feeds()
         self.build_search()
+        if len(self._filter_dirs) == 0:
+            self.build_css()
+            self.build_js()
+            self.build_icons()
 
     def build_cache(self):
         self.read_directories()
