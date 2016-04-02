@@ -567,6 +567,8 @@ class Site:
             self._filter_dirs.append(fdir)
 
     def get_dir_filter(self, directory):
+        if len(self._filter_dirs) == 0:
+            return True
         for fdir in self._filter_dirs:
             if directory.path.startswith(fdir):
                 return True
