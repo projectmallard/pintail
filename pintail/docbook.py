@@ -25,12 +25,12 @@ class DocBookPage(core.Page, core.ToolsProvider):
     def __init__(self, directory, source_file):
         core.Page.__init__(self, directory, source_file)
         self.page_id = 'index'
+        self.db2html = os.path.join(self.site.tools_path, 'pintail-html-docbook-local.xsl')
         return
         self.stage_page()
         self._tree = etree.parse(self.stage_path)
         etree.XInclude()(self._tree.getroot())
         self.page_id = self._tree.getroot().get('id')
-        self.db2html = os.path.join(self.site.tools_path, 'pintail-html-docbook-local.xsl')
 
     @classmethod
     def build_tools(cls, site):
@@ -62,8 +62,7 @@ class DocBookPage(core.Page, core.ToolsProvider):
                   '<xsl:import href="%s"/>\n' +
                   '<xsl:include href="%s"/>\n' +
                   '</xsl:stylesheet>\n')
-                 % (db2html,
-                    'site2html.xsl'))
+                 % (db2html, 'pintail-html.xsl'))
         fd.close()
 
     def stage_page(self):
@@ -118,7 +117,6 @@ class DocBookPage(core.Page, core.ToolsProvider):
 
     def build_html(self):
         self.site.echo('HTML', self.directory.path, self.target_file)
-        print(self.source_path)
         subprocess.call(['xsltproc',
                          '--xinclude',
                          '--stringparam', 'mal.site.root',
