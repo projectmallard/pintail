@@ -656,13 +656,20 @@ class Site:
                                  cwd=self.tools_path)
             p.communicate()
         self.echo('BUILD', 'https://git.gnome.org/browse/yelp-xsl', self.yelp_xsl_branch)
-        p = subprocess.Popen([os.path.join(self.yelp_xsl_path, 'autogen.sh')],
-                             cwd=self.yelp_xsl_path,
-                             stdout=subprocess.DEVNULL,
-                             stderr=subprocess.DEVNULL)
-        p.communicate()
-        p = subprocess.Popen(['make'], cwd=self.yelp_xsl_path, stdout=subprocess.DEVNULL)
-        p.communicate()
+        if os.path.exists(os.path.join(self.yelp_xsl_path, 'localbuild.sh')):
+            p = subprocess.Popen([os.path.join(self.yelp_xsl_path, 'localbuild.sh')],
+                                 cwd=self.yelp_xsl_path,
+                                 stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL)
+            p.communicate()
+        else:
+            p = subprocess.Popen([os.path.join(self.yelp_xsl_path, 'autogen.sh')],
+                                 cwd=self.yelp_xsl_path,
+                                 stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL)
+            p.communicate()
+            p = subprocess.Popen(['make'], cwd=self.yelp_xsl_path, stdout=subprocess.DEVNULL)
+            p.communicate()
 
         from pkg_resources import resource_string
         site2html = resource_string(__name__, 'pintail-html.xsl')
