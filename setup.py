@@ -7,7 +7,7 @@ setup(
     packages=['pintail'],
     scripts=['bin/pintail'],
     package_data={
-        'pintail': ['sample.cfg', 'site2atom.xsl', 'pintail-html.xsl'],
+        'pintail': ['sample.cfg', 'pintail-atom.xsl', 'pintail-html.xsl'],
     },
     author='Shaun McCance',
     author_email='shaunm@gnome.org',

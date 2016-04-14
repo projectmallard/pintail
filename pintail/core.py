@@ -456,7 +456,7 @@ class Directory(Extendable):
             self.site.echo('ATOM', self.path, atomfile)
 
             Site._makedirs(self.site.tools_path)
-            for xsltfile in ('site2html.xsl', 'site2atom.xsl'):
+            for xsltfile in ('pintail-html.xsl', 'pintail-atom.xsl'):
                 xsltpath = os.path.join(self.site.tools_path, xsltfile)
                 if not os.path.exists(xsltpath):
                     from pkg_resources import resource_string
@@ -465,22 +465,16 @@ class Directory(Extendable):
                     fd.write(codecs.decode(xsltcont, 'utf-8'))
                     fd.close()
 
+            mal2xhtml = os.path.join(self.site.yelp_xsl_path,
+                                     'xslt', 'mallard', 'html', 'mal2xhtml.xsl')
 
-            mal2xhtml = subprocess.check_output(['pkg-config',
-                                                 '--variable', 'mal2xhtml',
-                                                 'yelp-xsl'],
-                                                universal_newlines=True)
-            mal2xhtml = mal2xhtml.strip()
-            if mal2xhtml == '':
-                print('FIXME: mal2html not found')
-
-            atomxsl = os.path.join(self.site.tools_path, 'pintail-atom.xsl')
+            atomxsl = os.path.join(self.site.tools_path, 'pintail-atom-local.xsl')
             fd = open(atomxsl, 'w')
             fd.write('<xsl:stylesheet' +
                      ' xmlns:xsl="http://www.w3.org/1999/XSL/Transform"' +
                      ' version="1.0">\n')
             fd.write('<xsl:import href="' + mal2xhtml + '"/>\n')
-            fd.write('<xsl:import href="site2atom.xsl"/>\n')
+            fd.write('<xsl:import href="pintail-atom.xsl"/>\n')
             html_extension = self.site.config.get('html_extension') or '.html'
             fd.write('<xsl:param name="html.extension" select="' +
                      "'" + html_extension + "'" + '"/>\n')
@@ -506,6 +500,7 @@ class Directory(Extendable):
                              '--stringparam', 'feed.exclude_styles',
                              self.site.config.get('feed_exclude_styles', self.path) or '',
                              atomxsl, self.site.cache_path])
+
 
 
 class EmptyDirectory(Directory):
