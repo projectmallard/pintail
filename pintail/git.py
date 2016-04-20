@@ -33,13 +33,13 @@ class GitDirectory(pintail.Directory):
         self.absrepodir = os.path.join(self.site.pindir, 'git', self.repodir)
         if os.path.exists(self.absrepodir):
             if self.site.config._update and self.site.config.get('git_update', self.path) != 'false':
-                self.site.echo('UPDATE', self.repo, self.branch)
+                self.site.log('UPDATE', self.repo + '@' + self.branch)
                 p = subprocess.Popen(['git', 'pull', '-q', '-r',
                                       'origin', self.branch],
                                      cwd=self.absrepodir)
                 p.communicate()
         else:
-            self.site.echo('CLONE', self.repo, self.branch)
+            self.site.log('CLONE', self.repo + '@' + self.branch)
             pintail.Site._makedirs(os.path.join(self.site.pindir, 'git'))
             p = subprocess.Popen(['git', 'clone', '-q',
                                   '-b', self.branch, '--single-branch',

@@ -21,6 +21,7 @@ import configparser
 import copy
 import glob
 import importlib
+import logging
 import os
 import shutil
 import subprocess
@@ -199,7 +200,7 @@ class MallardPage(Page, ToolsProvider):
         return page
 
     def build_html(self):
-        self.site.echo('HTML', self.directory.path, self.target_file)
+        self.site.log('HTML', self.site_id)
         subprocess.call(['xsltproc',
                          '--stringparam', 'mal.cache.file', self.site.cache_path,
                          '--stringparam', 'pintail.site.dir', self.directory.path,
@@ -423,7 +424,7 @@ class Directory(Extendable):
             else:
                 source = os.path.join(self.source_path, fname)
                 target = os.path.join(self.target_path, fname)
-            self.site.echo('MEDIA', self.path, os.path.basename(fname))
+            self.site.log('MEDIA', self.path + os.path.basename(fname))
             Site._makedirs(os.path.dirname(target))
             shutil.copyfile(source, target)
 
@@ -441,7 +442,7 @@ class Directory(Extendable):
                 # a base path that isn't glob-interpreted.
                 files = glob.glob(os.path.join(self.source_path, glb))
                 for fname in files:
-                    self.site.echo('FILE', self.path, os.path.basename(fname))
+                    self.site.log('FILE', self.path + os.path.basename(fname))
                     shutil.copyfile(fname,
                                     os.path.join(self.target_path,
                                                  os.path.basename(fname)))
@@ -453,7 +454,7 @@ class Directory(Extendable):
             return
         atomfile = self.site.config.get('feed_atom', self.path)
         if atomfile is not None:
-            self.site.echo('ATOM', self.path, atomfile)
+            self.site.log('ATOM', self.path + atomfile)
 
             Site._makedirs(self.site.tools_path)
             for xsltfile in ('pintail-html.xsl', 'pintail-atom.xsl'):
@@ -527,6 +528,9 @@ class Site:
         self.yelp_xsl_branch = self.config.get('yelp_xsl_branch') or 'master'
         self.yelp_xsl_dir = 'yelp-xsl@' + self.yelp_xsl_branch.replace('/', '@')
         self.yelp_xsl_path = os.path.join(self.tools_path, self.yelp_xsl_dir)
+
+        self.logger = logging.getLogger('pintail')
+        self.logger.addHandler(logging.StreamHandler())
 
         self._filter_dirs = []
 
@@ -625,7 +629,7 @@ class Site:
 
     def build_cache(self):
         self.read_directories()
-        self.echo('CACHE', '__tools__', 'pintail.cache')
+        self.log('CACHE', '__pintail__/tools/pintail.cache')
         cache = etree.Element(CACHE_NS + 'cache', nsmap={
             None: 'http://projectmallard.org/1.0/',
             'cache': 'http://projectmallard.org/cache/1.0/',
@@ -643,19 +647,19 @@ class Site:
         Site._makedirs(self.tools_path)
         if os.path.exists(self.yelp_xsl_path):
             if self.config._update:
-                self.echo('UPDATE', 'https://git.gnome.org/browse/yelp-xsl', self.yelp_xsl_branch)
+                self.log('UPDATE', 'https://git.gnome.org/browse/yelp-xsl@' + self.yelp_xsl_branch)
                 p = subprocess.Popen(['git', 'pull', '-q', '-r', 'origin', self.yelp_xsl_branch],
                                      cwd=self.tools_path)
                 p.communicate()
         else:
-            self.echo('CLONE', 'https://git.gnome.org/browse/yelp-xsl', self.yelp_xsl_branch)
+            self.log('CLONE', 'https://git.gnome.org/browse/yelp-xsl@' + self.yelp_xsl_branch)
             p = subprocess.Popen(['git', 'clone', '-q',
                                   '-b', self.yelp_xsl_branch, '--single-branch',
                                   'https://git.gnome.org/browse/yelp-xsl',
                                   self.yelp_xsl_dir],
                                  cwd=self.tools_path)
             p.communicate()
-        self.echo('BUILD', 'https://git.gnome.org/browse/yelp-xsl', self.yelp_xsl_branch)
+        self.log('BUILD', 'https://git.gnome.org/browse/yelp-xsl@' + self.yelp_xsl_branch)
         if os.path.exists(os.path.join(self.yelp_xsl_path, 'localbuild.sh')):
             p = subprocess.Popen([os.path.join(self.yelp_xsl_path, 'localbuild.sh')],
                                  cwd=self.yelp_xsl_path,
@@ -743,7 +747,7 @@ class Site:
             ])
         fd.close()
 
-        # FIXME: need self.site.echo. Maybe we loop over the langs
+        # FIXME: need self.site.log. Maybe we loop over the langs
         # in python, calling xsltproc for each.
         subprocess.call(['xsltproc',
                          '-o', self.target_path,
@@ -754,7 +758,7 @@ class Site:
         jspath = os.path.join(self.yelp_xsl_path, 'js')
 
         if os.path.exists(os.path.join(jspath, 'jquery.js')):
-            self.echo('JS', '/', 'jquery.js')
+            self.log('JS', '/jquery.js')
             shutil.copyfile(os.path.join(jspath, 'jquery.js'),
                             os.path.join(self.target_path, 'jquery.js'))
 
@@ -786,20 +790,20 @@ class Site:
             ])
         fd.close()
 
-        self.echo('JS', '/', 'yelp.js')
+        self.log('JS', '/yelp.js')
         subprocess.call(['xsltproc',
                          '-o', os.path.join(self.target_path, 'yelp.js'),
                          jsxsl, self.cache_path])
 
         if os.path.exists(os.path.join(jspath, 'highlight.pack.js')):
-            self.echo('JS', '/', 'highlight.pack.js')
+            self.log('JS', '/highlight.pack.js')
             shutil.copyfile(os.path.join(jspath, 'highlight.pack.js'),
                             os.path.join(self.target_path, 'highlight.pack.js'))
 
         if os.path.exists(os.path.join(jspath, 'jquery.syntax.js')):
             for js in ['jquery.syntax.js', 'jquery.syntax.core.js',
                        'jquery.syntax.layout.yelp.js']:
-                self.echo('JS', '/', js)
+                self.log('JS', '/' + js)
                 shutil.copyfile(os.path.join(jspath, js),
                                 os.path.join(self.target_path, js))
 
@@ -849,7 +853,7 @@ class Site:
                                                jsxsl, self.cache_path],
                                               universal_newlines=True)
             for brush in brushes.split():
-                self.echo('JS', '/', brush)
+                self.log('JS', '/' + brush)
                 shutil.copyfile(os.path.join(jspath, brush),
                                 os.path.join(self.target_path, brush))
 
@@ -913,7 +917,7 @@ class Site:
                                 iconsize + 'x' + iconsize,
                                 'status')
         for f in os.listdir(iconpath):
-            self.echo('ICON', '/', f)
+            self.log('ICON', '/' + f)
             shutil.copyfile(os.path.join(iconpath, f),
                             os.path.join(self.target_path, f))
 
@@ -925,10 +929,8 @@ class Site:
             return True
         return False
 
-    def echo(self, tag, path, name):
-        if self.verbose:
-            print(tag + (' ' * (6 - len(tag))) + ' ' +
-                  path.strip('/') + '/' + name)
+    def log(self, tag, data):
+        self.logger.info('%(tag)-6s %(data)s' % {'tag': tag, 'data': data})
 
     @classmethod
     def _makedirs(cls, path):

@@ -104,7 +104,7 @@ class ElasticSearchProvider(pintail.search.SearchProvider):
             })
 
     def index_page(self, page):
-        self.site.echo('INDEX', page.directory.path, page.target_file)
+        self.site.log('INDEX', page.site_id)
 
         lang = 'en'
         self.create_index(lang)

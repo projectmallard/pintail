@@ -116,7 +116,7 @@ class DocBookPage(core.Page, core.ToolsProvider):
         return page
 
     def build_html(self):
-        self.site.echo('HTML', self.directory.path, self.target_file)
+        self.site.log('HTML', self.site_id)
         subprocess.call(['xsltproc',
                          '--xinclude',
                          '--stringparam', 'mal.site.root',
