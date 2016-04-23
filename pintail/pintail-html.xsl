@@ -181,6 +181,7 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
   <link rel="stylesheet" type="text/css">
     <xsl:attribute name="href">
       <xsl:value-of select="$pintail.site.root"/>
+      <xsl:text>pintail-mallard-</xsl:text>
       <xsl:value-of select="$pintail.site.locale"/>
       <xsl:text>.css</xsl:text>
     </xsl:attribute>
