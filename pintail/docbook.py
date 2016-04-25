@@ -18,19 +18,17 @@
 
 import os
 import subprocess
+from lxml import etree
 
 from . import core
 
-class DocBookPage(core.Page, core.ToolsProvider):
+XML_NS = '{http://www.w3.org/XML/1998/namespace}'
+
+class DocBookPage(core.Page, core.ToolsProvider, core.CssProvider):
     def __init__(self, directory, source_file):
         core.Page.__init__(self, directory, source_file)
         self.page_id = 'index'
         self.db2html = os.path.join(self.site.tools_path, 'pintail-html-docbook-local.xsl')
-        return
-        self.stage_page()
-        self._tree = etree.parse(self.stage_path)
-        etree.XInclude()(self._tree.getroot())
-        self.page_id = self._tree.getroot().get('id')
 
     @classmethod
     def build_tools(cls, site):
@@ -65,6 +63,81 @@ class DocBookPage(core.Page, core.ToolsProvider):
                  % (db2html, 'pintail-html.xsl'))
         fd.close()
 
+    @classmethod
+    def build_css(cls, site):
+        xslpath = os.path.join(site.yelp_xsl_path, 'xslt')
+
+        core.Site._makedirs(site.tools_path)
+        cssxsl = os.path.join(site.tools_path, 'pintail-css-docbook.xsl')
+        fd = open(cssxsl, 'w')
+        fd.writelines([
+            '<xsl:stylesheet',
+            ' xmlns:xsl="http://www.w3.org/1999/XSL/Transform"',
+            ' xmlns:exsl="http://exslt.org/common"',
+            ' extension-element-prefixes="exsl"',
+            ' version="1.0">\n',
+            '<xsl:import href="' + xslpath + '/common/l10n.xsl"/>\n',
+            '<xsl:import href="' + xslpath + '/common/color.xsl"/>\n',
+            '<xsl:import href="' + xslpath + '/common/icons.xsl"/>\n',
+            '<xsl:import href="' + xslpath + '/common/html.xsl"/>\n',
+            '<xsl:import href="' + xslpath + '/docbook/html/db2html-css.xsl"/>\n'
+            ])
+        custom_xsl = site.config.get('custom_xsl')
+        if custom_xsl is not None:
+            custom_xsl = os.path.join(site.topdir, custom_xsl)
+            fd.write('<xsl:include href="%s"/>\n' % custom_xsl)
+        fd.writelines([
+            '<xsl:output method="text"/>\n',
+            '<xsl:param name="out"/>\n',
+            '<xsl:template match="/">\n',
+            '<xsl:for-each select="/*">\n',
+            '<xsl:variable name="locale">\n',
+            ' <xsl:choose>\n',
+            '  <xsl:when test="@xml:lang">\n',
+            '   <xsl:value-of select="@xml:lang"/>\n',
+            '  </xsl:when>\n',
+            '  <xsl:when test="@lang">\n',
+            '   <xsl:value-of select="@lang"/>\n',
+            '  </xsl:when>\n',
+            '  <xsl:otherwise>\n',
+            '   <xsl:text>C</xsl:text>\n',
+            '  </xsl:otherwise>\n',
+            ' </xsl:choose>\n',
+            '</xsl:variable>\n',
+            '<exsl:document href="{$out}" method="text">\n',
+            ' <xsl:call-template name="html.css.content"/>\n',
+            '</exsl:document>\n',
+            '</xsl:for-each>\n',
+            '</xsl:template>\n'
+            '</xsl:stylesheet>\n'
+            ])
+        fd.close()
+
+        seenlangs = []
+        for page in site.root.iter_pages():
+            if isinstance(page, DocBookPage):
+                try:
+                    doc = etree.parse(page.source_path).getroot()
+                    lang = doc.get(XML_NS + 'lang', doc.get('lang', 'C'))
+                except:
+                    continue
+                if lang in seenlangs:
+                    continue
+                seenlangs.append(lang)
+                cssfile = 'pintail-docbook-' + lang + '.css'
+                csspath = os.path.join(site.target_path, cssfile)
+                site.log('CSS', '/' + cssfile)
+                subprocess.call(['xsltproc',
+                                 '-o', site.target_path,
+                                 '--stringparam', 'out', csspath,
+                                 cssxsl, page.source_path])
+                custom_css = site.config.get('custom_css')
+                if custom_css is not None:
+                    custom_css = os.path.join(site.topdir, custom_css)
+                    fd = open(csspath, 'a')
+                    fd.write(open(custom_css).read())
+                    fd.close()
+
     def stage_page(self):
         return
         core.Site._makedirs(self.directory.stage_path)
@@ -73,53 +146,15 @@ class DocBookPage(core.Page, core.ToolsProvider):
                          self.source_path])
 
     def get_cache_data(self):
-        return
-        def _get_node_cache(node):
-            ret = etree.Element(node.tag)
-            ret.text = '\n'
-            ret.tail = '\n'
-            for attr in node.keys():
-                if attr != 'id':
-                    ret.set(attr, node.get(attr))
-            if node.tag == MAL_NS + 'page':
-                ret.set('id', self.site_id)
-            elif node.get('id', None) is not None:
-                ret.set('id', self.site_id + '#' + node.get('id'))
-            ret.set(SITE_NS + 'dir', self.directory.path)
-            for child in node:
-                if child.tag == MAL_NS + 'info':
-                    info = etree.Element(child.tag)
-                    ret.append(info)
-                    for infochild in child:
-                        if infochild.tag == MAL_NS + 'link':
-                            xref = infochild.get('xref', None)
-                            if xref is None or xref.startswith('/'):
-                                info.append(infochild)
-                            else:
-                                link = etree.Element(infochild.tag)
-                                link.set('xref', self.directory.path + xref)
-                                for attr in infochild.keys():
-                                    if attr != 'xref':
-                                        link.set(attr, infochild.get(attr))
-                                for linkchild in infochild:
-                                    link.append(linkchild)
-                                info.append(link)
-                        else:
-                            info.append(infochild)
-                if child.tag == MAL_NS + 'title':
-                    ret.append(child)
-                elif child.tag == MAL_NS + 'section':
-                    ret.append(_get_node_cache(child))
-            return ret
-        page = _get_node_cache(self._tree.getroot())
-        page.set(CACHE_NS + 'href', self.stage_path)
-        return page
+        pass
 
     def build_html(self):
         self.site.log('HTML', self.site_id)
         subprocess.call(['xsltproc',
                          '--xinclude',
-                         '--stringparam', 'mal.site.root',
+                         '--stringparam', 'pintail.format', 'docbook',
+                         '--stringparam', 'pintail.site.dir', self.directory.path,
+                         '--stringparam', 'pintail.site.root',
                          self.site.config.get('site_root') or '/',
                          '-o', self.target_path,
                          self.db2html, self.source_path])

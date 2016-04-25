@@ -27,6 +27,7 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 
 <xsl:param name="pintail.site.root" select="'/'"/>
 <xsl:param name="pintail.site.dir"/>
+<xsl:param name="pintail.format" select="'mallard'"/>
 
 <!-- For backwards compatibility. Use pintail params instead. -->
 <xsl:param name="mal.site.root" select="$pintail.site.root"/>
@@ -181,7 +182,9 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
   <link rel="stylesheet" type="text/css">
     <xsl:attribute name="href">
       <xsl:value-of select="$pintail.site.root"/>
-      <xsl:text>pintail-mallard-</xsl:text>
+      <xsl:text>pintail-</xsl:text>
+      <xsl:value-of select="$pintail.format"/>
+      <xsl:text>-</xsl:text>
       <xsl:value-of select="$pintail.site.locale"/>
       <xsl:text>.css</xsl:text>
     </xsl:attribute>
