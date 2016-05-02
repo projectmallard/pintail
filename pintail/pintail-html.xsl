@@ -218,7 +218,14 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
           <xsl:if test="not(contains($mid, '/'))">
             <mal:link xref="{$linklinkid}">
               <mal:title type="sort">
-                <xsl:value-of select="normalize-space(mal:info/mal:title[@type = 'sort'][1])"/>
+                <xsl:choose>
+                  <xsl:when test="mal:info/mal:title[@type = 'sort']">
+                    <xsl:value-of select="normalize-space(mal:info/mal:title[@type = 'sort'][1])"/>
+                  </xsl:when>
+                  <xsl:otherwise>
+                    <xsl:value-of select="normalize-space(mal:title[1])"/>
+                  </xsl:otherwise>
+                </xsl:choose>
               </mal:title>
             </mal:link>
           </xsl:if>
