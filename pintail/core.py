@@ -145,6 +145,8 @@ class MallardPage(Page, ToolsProvider, CssProvider):
         if link_extension is not None:
             fd.write('<xsl:param name="mal.link.extension" select="' +
                      "'" + link_extension + "'" + '"/>\n')
+            fd.write('<xsl:param name="pintail.extension.link" select="' +
+                     "'" + link_extension + "'" + '"/>\n')
         custom_xsl = site.config.get('custom_xsl')
         if custom_xsl is not None:
             custom_xsl = os.path.join(site.topdir, custom_xsl)
@@ -565,6 +567,8 @@ class Directory(Extendable):
             link_extension = self.site.config.get('link_extension')
             if link_extension is not None:
                 fd.write('<xsl:param name="mal.link.extension" select="' +
+                         "'" + link_extension + "'" + '"/>\n')
+                fd.write('<xsl:param name="pintail.extension.link" select="' +
                          "'" + link_extension + "'" + '"/>\n')
             custom_xsl = self.site.config.get('custom_xsl')
             if custom_xsl is not None:

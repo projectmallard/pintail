@@ -29,6 +29,8 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 <xsl:param name="pintail.site.dir"/>
 <xsl:param name="pintail.format" select="'mallard'"/>
 
+<xsl:param name="pintail.extension.link" select="$html.extension"/>
+
 <!-- For backwards compatibility. Use pintail params instead. -->
 <xsl:param name="mal.site.root" select="$pintail.site.root"/>
 <xsl:param name="mal.site.dir" select="$pintail.site.dir"/>
@@ -51,7 +53,18 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 <xsl:template name="pintail.site.sitetrail">
   <xsl:param name="node" select="."/>
   <xsl:param name="xref" select="$node/@xref"/>
-  <xsl:variable name="sitetrail" select="str:tokenize($xref, '/')[position() != last()]"/>
+  <xsl:variable name="xref_">
+    <xsl:choose>
+      <xsl:when test="$pintail.format = 'mallard'">
+        <xsl:value-of select="$xref"/>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:value-of select="$pintail.site.dir"/>
+        <xsl:text>index</xsl:text>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:variable>
+  <xsl:variable name="sitetrail" select="str:tokenize($xref_, '/')[position() != last()]"/>
   <xsl:for-each select="$sitetrail">
     <xsl:variable name="pos" select="position()"/>
     <xsl:variable name="id">
@@ -78,6 +91,13 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 
 <xsl:template name="mal2html.page.linktrails.empty">
   <xsl:param name="node" select="."/>
+  <xsl:call-template name="html.linktrails.empty">
+    <xsl:with-param name="node" select="$node"/>
+  </xsl:call-template>
+</xsl:template>
+
+<xsl:template name="html.linktrails.empty">
+  <xsl:param name="node" select="."/>
   <div class="trails">
     <div class="trail">
       <xsl:call-template name="pintail.site.sitetrail">
@@ -91,6 +111,13 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 </xsl:template>
 
 <xsl:template name="mal2html.page.linktrails.trail.prefix">
+  <xsl:param name="node" select="."/>
+  <xsl:call-template name="html.linktrails.prefix">
+    <xsl:with-param name="node" select="$node"/>
+  </xsl:call-template>
+</xsl:template>
+
+<xsl:template name="html.linktrails.prefix">
   <xsl:param name="node" select="."/>
   <xsl:call-template name="pintail.site.sitetrail">
     <xsl:with-param name="node" select="$node"/>
@@ -125,15 +152,15 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
               <xsl:value-of select="$pageid"/>
             </xsl:otherwise>
           </xsl:choose>
-          <xsl:value-of select="concat($mal.link.extension, '#', $sectionid)"/>
+          <xsl:value-of select="concat($pintail.extension.link, '#', $sectionid)"/>
         </xsl:when>
         <xsl:otherwise>
           <xsl:choose>
             <xsl:when test="starts-with($xref, '/')">
-              <xsl:value-of select="concat(substring($xref, 2), $mal.link.extension)"/>
+              <xsl:value-of select="concat(substring($xref, 2), $pintail.extension.link)"/>
             </xsl:when>
             <xsl:otherwise>
-              <xsl:value-of select="concat($xref, $mal.link.extension)"/>
+              <xsl:value-of select="concat($xref, $pintail.extension.link)"/>
             </xsl:otherwise>
           </xsl:choose>
         </xsl:otherwise>

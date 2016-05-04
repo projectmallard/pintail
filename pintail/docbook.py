@@ -33,6 +33,7 @@ class DocBookPage(core.Page, core.ToolsProvider, core.CssProvider):
     @classmethod
     def build_tools(cls, site):
         db2html = os.path.join(site.yelp_xsl_path, 'xslt', 'docbook', 'html', 'db2html.xsl')
+        mallink = os.path.join(site.yelp_xsl_path, 'xslt', 'mallard', 'common', 'mal-link.xsl')
 
         fd = open(os.path.join(site.tools_path, 'pintail-html-docbook-local.xsl'), 'w')
         fd.write('<xsl:stylesheet' +
@@ -46,6 +47,8 @@ class DocBookPage(core.Page, core.ToolsProvider, core.CssProvider):
         if link_extension is not None:
             fd.write('<xsl:param name="db.chunk.extension" select="' +
                      "'" + link_extension + "'" + '"/>')
+            fd.write('<xsl:param name="pintail.extension.link" select="' +
+                     "'" + link_extension + "'" + '"/>\n')
         custom_xsl = site.config.get('custom_xsl')
         if custom_xsl is not None:
             custom_xsl = os.path.join(site.topdir, custom_xsl)
@@ -58,9 +61,10 @@ class DocBookPage(core.Page, core.ToolsProvider, core.CssProvider):
                   ' xmlns:xsl="http://www.w3.org/1999/XSL/Transform"' +
                   ' version="1.0">\n' +
                   '<xsl:import href="%s"/>\n' +
+                  '<xsl:import href="%s"/>\n' +
                   '<xsl:include href="%s"/>\n' +
                   '</xsl:stylesheet>\n')
-                 % (db2html, 'pintail-html.xsl'))
+                 % (db2html, mallink, 'pintail-html.xsl'))
         fd.close()
 
     @classmethod
@@ -152,6 +156,7 @@ class DocBookPage(core.Page, core.ToolsProvider, core.CssProvider):
         self.site.log('HTML', self.site_id)
         subprocess.call(['xsltproc',
                          '--xinclude',
+                         '--stringparam', 'mal.cache.file', self.site.cache_path,
                          '--stringparam', 'pintail.format', 'docbook',
                          '--stringparam', 'pintail.site.dir', self.directory.path,
                          '--stringparam', 'pintail.site.root',
