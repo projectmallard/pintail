@@ -229,7 +229,7 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
   <script type="text/javascript" src="{$html.js.root}yelp.js"/>
 </xsl:template>
 
-<xsl:template match="mal:links[@type = 'site-subdirs']">
+<xsl:template match="mal:links[@type = 'site-subdirs' or @type = 'site:subdirs']">
   <xsl:variable name="page" select="/mal:page"/>
   <xsl:variable name="links">
     <xsl:for-each select="$mal.cache/mal:page">
