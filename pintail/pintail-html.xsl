@@ -35,6 +35,11 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 <xsl:param name="mal.site.root" select="$pintail.site.root"/>
 <xsl:param name="mal.site.dir" select="$pintail.site.dir"/>
 
+<xsl:param name="pintail.source.repository"/>
+<xsl:param name="pintail.source.branch"/>
+<xsl:param name="pintail.source.directory"/>
+<xsl:param name="pintail.source.file"/>
+
 <xsl:variable name="pintail.site.locale">
   <xsl:choose>
     <xsl:when test="$l10n.locale != ''">

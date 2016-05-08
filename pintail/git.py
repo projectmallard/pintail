@@ -55,6 +55,13 @@ class GitDirectory(pintail.Directory):
         if repo is not None:
             return True
 
+    def get_special_path_info(self):
+        return {
+            'source_repository': self.repo,
+            'source_branch': self.branch,
+            'source_directory': self.site.config.get('git_directory', self.path) or ''
+        }
+
     @property
     def source_path(self):
         return os.path.join(self.absrepodir,

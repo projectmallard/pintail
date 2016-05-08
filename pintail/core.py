@@ -288,11 +288,19 @@ class MallardPage(Page, ToolsProvider, CssProvider):
 
     def build_html(self):
         self.site.log('HTML', self.site_id)
+        pinfo = self.directory.get_special_path_info()
         subprocess.call(['xsltproc',
                          '--stringparam', 'mal.cache.file', self.site.cache_path,
                          '--stringparam', 'pintail.site.dir', self.directory.path,
                          '--stringparam', 'pintail.site.root',
                          self.site.config.get('site_root') or '/',
+                         '--stringparam', 'pintail.source.repository',
+                         pinfo.get('source_repository', ''),
+                         '--stringparam', 'pintail.source.branch',
+                         pinfo.get('source_branch', ''),
+                         '--stringparam', 'pintail.source.directory',
+                         pinfo.get('source_directory', ''),
+                         '--stringparam', 'pintail.source.file', self.source_file,
                          '-o', self.target_path,
                          self.mal2html, self.stage_path])
 
@@ -394,6 +402,9 @@ class Directory(Extendable):
     @classmethod
     def is_special_path(cls, site, path):
         return False
+
+    def get_special_path_info(self):
+        return {}
 
     @property
     def source_path(self):
