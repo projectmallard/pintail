@@ -5,6 +5,7 @@ setup(
     version='0.2',
     description='Build complete web site from Mallard sources.',
     packages=['pintail'],
+    namespace_packages=['pintail'],
     scripts=['bin/pintail'],
     package_data={
         'pintail': ['sample.cfg', 'pintail-atom.xsl', 'pintail-html.xsl'],

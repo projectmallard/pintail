@@ -19,7 +19,7 @@
 import urllib
 import uuid
 
-import pintail
+import pintail.search
 
 import elasticsearch
 

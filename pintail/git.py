@@ -19,9 +19,9 @@
 import os
 import subprocess
 
-import pintail
+import pintail.site
 
-class GitDirectory(pintail.Directory):
+class GitDirectory(pintail.site.Directory):
     def __init__(self, site, path, *, parent=None):
         self.site = site
         self.path = path
@@ -40,14 +40,14 @@ class GitDirectory(pintail.Directory):
                 p.communicate()
         else:
             self.site.log('CLONE', self.repo + '@' + self.branch)
-            pintail.Site._makedirs(os.path.join(self.site.pindir, 'git'))
+            pintail.site.Site._makedirs(os.path.join(self.site.pindir, 'git'))
             p = subprocess.Popen(['git', 'clone', '-q',
                                   '-b', self.branch, '--single-branch',
                                   self.repo, self.repodir],
                                  cwd=os.path.join(self.site.pindir, 'git'))
             p.communicate()
 
-        pintail.Directory.__init__(self, site, path)
+        pintail.site.Directory.__init__(self, site, path)
 
     @classmethod
     def is_special_path(cls, site, path):

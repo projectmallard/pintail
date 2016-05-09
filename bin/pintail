@@ -22,7 +22,7 @@ import logging
 import os
 import sys
 
-import pintail
+import pintail.site
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -69,7 +69,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.command == 'init':
-        pintail.Site.init_site(os.curdir)
+        pintail.site.Site.init_site(os.curdir)
         sys.exit(0)
         
     dir = os.getcwd()
@@ -83,7 +83,7 @@ if __name__ == '__main__':
         sys.stderr.write('Could not find a pintail.cfg file\n')
         sys.exit(1)
 
-    site = pintail.Site(config)
+    site = pintail.site.Site(config)
     if args.verbose:
         site.logger.setLevel(logging.INFO)
 

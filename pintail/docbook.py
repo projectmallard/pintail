@@ -20,13 +20,13 @@ import os
 import subprocess
 from lxml import etree
 
-from . import core
+import pintail.site
 
 XML_NS = '{http://www.w3.org/XML/1998/namespace}'
 
-class DocBookPage(core.Page, core.ToolsProvider, core.CssProvider):
+class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.CssProvider):
     def __init__(self, directory, source_file):
-        core.Page.__init__(self, directory, source_file)
+        pintail.site.Page.__init__(self, directory, source_file)
         self.page_id = 'index'
         self.db2html = os.path.join(self.site.tools_path, 'pintail-html-docbook-local.xsl')
 
@@ -71,7 +71,7 @@ class DocBookPage(core.Page, core.ToolsProvider, core.CssProvider):
     def build_css(cls, site):
         xslpath = os.path.join(site.yelp_xsl_path, 'xslt')
 
-        core.Site._makedirs(site.tools_path)
+        pintail.site.Site._makedirs(site.tools_path)
         cssxsl = os.path.join(site.tools_path, 'pintail-css-docbook.xsl')
         fd = open(cssxsl, 'w')
         fd.writelines([
@@ -144,7 +144,7 @@ class DocBookPage(core.Page, core.ToolsProvider, core.CssProvider):
 
     def stage_page(self):
         return
-        core.Site._makedirs(self.directory.stage_path)
+        pintail.site.Site._makedirs(self.directory.stage_path)
         subprocess.call(['xmllint', '--xinclude',
                          '-o', self.stage_path,
                          self.source_path])

@@ -16,7 +16,4 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 # 02111-1307, USA.
 
-from .core import *
-from . import docbook
-from . import git
-from . import search
+__import__('pkg_resources').declare_namespace(__name__)
