@@ -23,6 +23,10 @@ from lxml import etree
 import pintail.site
 
 XML_NS = '{http://www.w3.org/XML/1998/namespace}'
+MAL_NS = '{http://projectmallard.org/1.0/}'
+SITE_NS = '{http://projectmallard.org/site/1.0/}'
+PINTAIL_NS = '{http://pintail.io/}'
+DOCBOOK_NS = '{http://docbook.org/ns/docbook}'
 
 class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.CssProvider):
     def __init__(self, directory, source_file):
@@ -150,7 +154,38 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
                          self.source_path])
 
     def get_cache_data(self):
-        pass
+        ret = None
+        try:
+            ret = etree.Element(PINTAIL_NS + 'external')
+            ret.set('id', self.directory.path + 'index')
+            ret.set(SITE_NS + 'dir', self.directory.path)
+            dbfile = etree.parse(self.source_path)
+            dbfile.xinclude()
+            info = None
+            title = None
+            for child in dbfile.getroot():
+                if not isinstance(child.tag, str):
+                    continue
+                if child.tag == (DOCBOOK_NS + 'info'):
+                    info = child
+                elif etree.QName(child.tag).namespace is None and child.tag.endswith('info'):
+                    info = child
+                elif child.tag in ('title', DOCBOOK_NS + 'title'):
+                    title = child
+                    break
+            if title is None and info is not None:
+                for child in info:
+                    if child.tag in ('title', DOCBOOK_NS + 'title'):
+                        title = child
+                        break
+            if title is not None:
+                title = title.xpath('string(.)')
+                titlen = etree.Element(MAL_NS + 'title')
+                titlen.text = title
+                ret.append(titlen)
+        except:
+            pass
+        return ret
 
     def build_html(self):
         self.site.log('HTML', self.site_id)

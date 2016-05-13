@@ -734,7 +734,8 @@ class Site:
         cache = etree.Element(CACHE_NS + 'cache', nsmap={
             None: 'http://projectmallard.org/1.0/',
             'cache': 'http://projectmallard.org/cache/1.0/',
-            'site': 'http://projectmallard.org/site/1.0/'
+            'site': 'http://projectmallard.org/site/1.0/',
+            'pintail': 'http://pintail.io/'
         })
         for page in self.root.iter_pages():
             cdata = page.get_cache_data()

@@ -20,6 +20,7 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
                 xmlns:mal="http://projectmallard.org/1.0/"
                 xmlns:str="http://exslt.org/strings"
                 xmlns:exsl="http://exslt.org/common"
+                xmlns:pintail="http://pintail.io/"
                 xmlns="http://www.w3.org/1999/xhtml"
                 extension-element-prefixes="exsl"
                 exclude-result-prefixes="mal str exsl"
@@ -237,7 +238,7 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 <xsl:template match="mal:links[@type = 'site-subdirs' or @type = 'site:subdirs']">
   <xsl:variable name="page" select="/mal:page"/>
   <xsl:variable name="links">
-    <xsl:for-each select="$mal.cache/mal:page">
+    <xsl:for-each select="$mal.cache/mal:page | $mal.cache/pintail:external">
       <xsl:if test="starts-with(@id, $pintail.site.dir)">
         <xsl:variable name="aft" select="substring-after(@id, $pintail.site.dir)"/>
         <xsl:if test="substring($aft, string-length($aft) - 5) = '/index'">
@@ -280,6 +281,70 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
       </ul>
     </div>
   </xsl:if>
+</xsl:template>
+
+<xsl:template name="mal.link.content.custom">
+  <xsl:param name="node" select="."/>
+  <xsl:param name="action" select="$node/@action"/>
+  <xsl:param name="xref" select="$node/@xref"/>
+  <xsl:param name="href" select="$node/@href"/>
+  <xsl:param name="role" select="''"/>
+  <xsl:param name="info" select="/false"/>
+  <xsl:call-template name="pintail.mal.link.content.custom">
+    <xsl:with-param name="node" select="$node"/>
+    <xsl:with-param name="action" select="$action"/>
+    <xsl:with-param name="xref" select="$xref"/>
+    <xsl:with-param name="href" select="$href"/>
+    <xsl:with-param name="role" select="$role"/>
+    <xsl:with-param name="info" select="$info"/>
+  </xsl:call-template>
+</xsl:template>
+
+<xsl:template name="pintail.mal.link.content.custom">
+  <xsl:param name="node" select="."/>
+  <xsl:param name="action" select="$node/@action"/>
+  <xsl:param name="xref" select="$node/@xref"/>
+  <xsl:param name="href" select="$node/@href"/>
+  <xsl:param name="role" select="''"/>
+  <xsl:param name="info" select="/false"/>
+  <xsl:for-each select="$mal.cache">
+    <xsl:variable name="ext" select="/*/pintail:external[@id = $xref]"/>
+    <xsl:if test="count($ext) > 0">
+      <xsl:value-of select="$ext/mal:title"/>
+    </xsl:if>
+  </xsl:for-each>
+</xsl:template>
+
+<xsl:template name="mal.link.tooltip.custom">
+  <xsl:param name="node" select="."/>
+  <xsl:param name="action" select="$node/@action"/>
+  <xsl:param name="xref" select="$node/@xref"/>
+  <xsl:param name="href" select="$node/@href"/>
+  <xsl:param name="role" select="''"/>
+  <xsl:param name="info" select="/false"/>
+  <xsl:call-template name="pintail.mal.link.tooltip.custom">
+    <xsl:with-param name="node" select="$node"/>
+    <xsl:with-param name="action" select="$action"/>
+    <xsl:with-param name="xref" select="$xref"/>
+    <xsl:with-param name="href" select="$href"/>
+    <xsl:with-param name="role" select="$role"/>
+    <xsl:with-param name="info" select="$info"/>
+  </xsl:call-template>
+</xsl:template>
+
+<xsl:template name="pintail.mal.link.tooltip.custom">
+  <xsl:param name="node" select="."/>
+  <xsl:param name="action" select="$node/@action"/>
+  <xsl:param name="xref" select="$node/@xref"/>
+  <xsl:param name="href" select="$node/@href"/>
+  <xsl:param name="role" select="''"/>
+  <xsl:param name="info" select="/false"/>
+  <xsl:for-each select="$mal.cache">
+    <xsl:variable name="ext" select="/*/pintail:external[@id = $xref]"/>
+    <xsl:if test="count($ext) > 0">
+      <xsl:value-of select="$ext/mal:title"/>
+    </xsl:if>
+  </xsl:for-each>
 </xsl:template>
 
 </xsl:stylesheet>
