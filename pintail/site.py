@@ -632,6 +632,9 @@ class Site:
 
         self._filter_dirs = []
 
+        for plugin in (self.config.get('plugins') or '').split():
+            importlib.import_module(plugin)
+
         self.search_provider = None
         search = self.config.get('search_provider')
         if search is not None:
