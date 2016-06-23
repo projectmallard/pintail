@@ -674,6 +674,13 @@ class Site:
                 return True
         return False
 
+    def get_custom_xsl(self):
+        custom_xsl = self.config.get('custom_xsl')
+        if custom_xsl is not None:
+            custom_xsl = [os.path.join(site.topdir, custom_xsl)]
+            return custom_xsl
+        return []
+
     def read_directories(self):
         if self.root is not None:
             return
@@ -827,10 +834,8 @@ class Site:
             ' version="1.0">\n'
             '<xsl:import href="', xslpath, '/mallard/html/mal2xhtml.xsl"/>\n'
             ])
-        custom_xsl = self.config.get('custom_xsl')
-        if custom_xsl is not None:
-            custom_xsl = os.path.join(self.topdir, custom_xsl)
-            fd.write('<xsl:include href="%s"/>\n' % custom_xsl)
+        for xsl in self.get_custom_xsl():
+            fd.write('<xsl:include href="%s"/>\n' % xsl)
         fd.writelines([
             '<xsl:output method="text"/>\n',
             '<xsl:template match="/">\n',
@@ -870,10 +875,8 @@ class Site:
                 ' version="1.0">\n',
                 '<xsl:import href="', xslpath, '/mallard/html/mal2xhtml.xsl"/>\n'
             ])
-            custom_xsl = self.config.get('custom_xsl')
-            if custom_xsl is not None:
-                custom_xsl = os.path.join(self.topdir, custom_xsl)
-                fd.write('<xsl:include href="%s"/>\n' % custom_xsl)
+            for xsl in self.get_custom_xsl():
+                fd.write('<xsl:include href="%s"/>\n' % xsl)
             fd.writelines([
                 '<xsl:output method="text"/>\n',
                 '<xsl:template match="/">\n',
@@ -936,10 +939,8 @@ class Site:
             ' version="1.0">\n'
             '<xsl:import href="' + xslpath + '/common/icons.xsl"/>\n'
             )
-        custom_xsl = self.config.get('custom_xsl')
-        if custom_xsl is not None:
-            custom_xsl = os.path.join(self.topdir, custom_xsl)
-            xsl += ('<xsl:include href="%s"/>\n' % custom_xsl)
+        for xsl in self.get_custom_xsl():
+            fd.write('<xsl:include href="%s"/>\n' % xsl)
         xsl += (
             '<xsl:output method="text"/>\n'
             '<xsl:template match="/">\n'

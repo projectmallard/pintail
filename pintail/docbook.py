@@ -53,10 +53,8 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
                      "'" + link_extension + "'" + '"/>')
             fd.write('<xsl:param name="pintail.extension.link" select="' +
                      "'" + link_extension + "'" + '"/>\n')
-        custom_xsl = site.config.get('custom_xsl')
-        if custom_xsl is not None:
-            custom_xsl = os.path.join(site.topdir, custom_xsl)
-            fd.write('<xsl:include href="%s"/>\n' % custom_xsl)
+        for xsl in site.get_custom_xsl():
+            fd.write('<xsl:include href="%s"/>\n' % xsl)
         fd.write('</xsl:stylesheet>')
         fd.close()
 
@@ -90,10 +88,8 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
             '<xsl:import href="' + xslpath + '/common/html.xsl"/>\n',
             '<xsl:import href="' + xslpath + '/docbook/html/db2html-css.xsl"/>\n'
             ])
-        custom_xsl = site.config.get('custom_xsl')
-        if custom_xsl is not None:
-            custom_xsl = os.path.join(site.topdir, custom_xsl)
-            fd.write('<xsl:include href="%s"/>\n' % custom_xsl)
+        for xsl in site.get_custom_xsl():
+            fd.write('<xsl:include href="%s"/>\n' % xsl)
         fd.writelines([
             '<xsl:output method="text"/>\n',
             '<xsl:param name="out"/>\n',
