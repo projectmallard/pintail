@@ -65,6 +65,12 @@ class CssProvider(Extendable):
         pass
 
 
+class XslProvider(Extendable):
+    @classmethod
+    def get_xsl(cls, site):
+        return []
+
+
 class Page(Extendable):
     def __init__(self, directory, source_file):
         self.site = directory.site
@@ -147,10 +153,8 @@ class MallardPage(Page, ToolsProvider, CssProvider):
                      "'" + link_extension + "'" + '"/>\n')
             fd.write('<xsl:param name="pintail.extension.link" select="' +
                      "'" + link_extension + "'" + '"/>\n')
-        custom_xsl = site.config.get('custom_xsl')
-        if custom_xsl is not None:
-            custom_xsl = os.path.join(site.topdir, custom_xsl)
-            fd.write('<xsl:include href="%s"/>\n' % custom_xsl)
+        for xsl in site.get_custom_xsl():
+            fd.write('<xsl:include href="%s"/>\n' % xsl)
         fd.write('</xsl:stylesheet>')
         fd.close()
 
@@ -185,10 +189,8 @@ class MallardPage(Page, ToolsProvider, CssProvider):
             '<xsl:import href="' + xslpath + '/common/html.xsl"/>\n',
             '<xsl:import href="' + xslpath + '/mallard/html/mal2html-page.xsl"/>\n'
             ])
-        custom_xsl = site.config.get('custom_xsl')
-        if custom_xsl is not None:
-            custom_xsl = os.path.join(site.topdir, custom_xsl)
-            fd.write('<xsl:include href="%s"/>\n' % custom_xsl)
+        for xsl in site.get_custom_xsl():
+            fd.write('<xsl:include href="%s"/>\n' % xsl)
         fd.writelines([
             '<xsl:output method="text"/>\n',
             '<xsl:param name="id"/>\n',
@@ -581,10 +583,8 @@ class Directory(Extendable):
                          "'" + link_extension + "'" + '"/>\n')
                 fd.write('<xsl:param name="pintail.extension.link" select="' +
                          "'" + link_extension + "'" + '"/>\n')
-            custom_xsl = self.site.config.get('custom_xsl')
-            if custom_xsl is not None:
-                custom_xsl = os.path.join(self.site.topdir, custom_xsl)
-                fd.write('<xsl:include href="%s"/>\n' % custom_xsl)
+            for xsl in self.site.get_custom_xsl():
+                fd.write('<xsl:include href="%s"/>\n' % xsl)
             fd.write('</xsl:stylesheet>')
             fd.close()
 
@@ -675,11 +675,13 @@ class Site:
         return False
 
     def get_custom_xsl(self):
-        custom_xsl = self.config.get('custom_xsl')
-        if custom_xsl is not None:
-            custom_xsl = [os.path.join(site.topdir, custom_xsl)]
-            return custom_xsl
-        return []
+        ret = []
+        custom_xsl = self.config.get('custom_xsl') or ''
+        for x in custom_xsl.split():
+            ret.append(os.path.join(self.topdir, x))
+        for cls in XslProvider.iter_subclasses():
+            ret.extend(cls.get_xsl(self))
+        return ret
 
     def read_directories(self):
         if self.root is not None:
@@ -939,8 +941,8 @@ class Site:
             ' version="1.0">\n'
             '<xsl:import href="' + xslpath + '/common/icons.xsl"/>\n'
             )
-        for xsl in self.get_custom_xsl():
-            fd.write('<xsl:include href="%s"/>\n' % xsl)
+        for x in self.get_custom_xsl():
+            xsl += ('<xsl:include href="%s"/>\n' % x)
         xsl += (
             '<xsl:output method="text"/>\n'
             '<xsl:template match="/">\n'
