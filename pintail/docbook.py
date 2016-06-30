@@ -31,8 +31,10 @@ DOCBOOK_NS = '{http://docbook.org/ns/docbook}'
 class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.CssProvider):
     def __init__(self, directory, source_file):
         pintail.site.Page.__init__(self, directory, source_file)
-        self.page_id = 'index'
-        self.db2html = os.path.join(self.site.tools_path, 'pintail-html-docbook-local.xsl')
+
+    @property
+    def page_id(self):
+        return 'index'
 
     @classmethod
     def build_tools(cls, site):
@@ -193,7 +195,8 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
                          '--stringparam', 'pintail.site.root',
                          self.site.config.get('site_root') or '/',
                          '-o', self.target_path,
-                         self.db2html, self.source_path])
+                         os.path.join(self.site.tools_path, 'pintail-html-docbook-local.xsl'),
+                         self.source_path])
 
     def get_media(self):
         return []

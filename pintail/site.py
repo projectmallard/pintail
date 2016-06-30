@@ -47,10 +47,11 @@ class DuplicatePageException(Exception):
 
 class Extendable:
     @classmethod
-    def iter_subclasses(cls):
+    def iter_subclasses(cls, filter=None):
         for cls in cls.__subclasses__():
-            yield cls
-            yield from cls.iter_subclasses()
+            if filter is None or filter in cls.__dict__:
+                yield cls
+            yield from cls.iter_subclasses(filter)
 
 
 class ToolsProvider(Extendable):
@@ -73,12 +74,26 @@ class XslProvider(Extendable):
 
 class Page(Extendable):
     def __init__(self, directory, source_file):
-        self.site = directory.site
         self.directory = directory
-        self.source_file = source_file
-        self.source_path = os.path.join(directory.source_path, source_file)
-        self.target_extension = self.site.config.get('html_extension') or '.html'
-        self.page_id = None
+        self.site = directory.site
+
+        self._source_file = source_file
+
+    @property
+    def page_id(self):
+        return None
+
+    @property
+    def site_id(self):
+        return self.directory.path + self.page_id
+
+    @property
+    def source_file(self):
+        return self._source_file
+
+    @property
+    def source_path(self):
+        return os.path.join(self.directory.source_path, self.source_file)
 
     @property
     def stage_file(self):
@@ -97,8 +112,8 @@ class Page(Extendable):
         return os.path.join(self.directory.target_path, self.target_file)
 
     @property
-    def site_id(self):
-        return self.directory.path + self.page_id
+    def target_extension(self):
+        return self.site.config.get('html_extension') or '.html'
 
     def get_cache_data(self):
         return None
@@ -125,6 +140,10 @@ class Page(Extendable):
     def get_pages(cls, directory, filename):
         return []
 
+    @classmethod
+    def get_pages_dir(cls, directory):
+        return []
+
 
 class MallardPage(Page, ToolsProvider, CssProvider):
     def __init__(self, directory, source_file):
@@ -132,8 +151,11 @@ class MallardPage(Page, ToolsProvider, CssProvider):
         self.stage_page()
         self._tree = etree.parse(self.stage_path)
         etree.XInclude()(self._tree.getroot())
-        self.page_id = self._tree.getroot().get('id')
-        self.mal2html = os.path.join(self.site.tools_path, 'pintail-html-mallard-local.xsl')
+        self._mallard_page_id = self._tree.getroot().get('id')
+
+    @property
+    def page_id(self):
+        return self._mallard_page_id
 
     @classmethod
     def build_tools(cls, site):
@@ -304,7 +326,8 @@ class MallardPage(Page, ToolsProvider, CssProvider):
                          pinfo.get('source_directory', ''),
                          '--stringparam', 'pintail.source.file', self.source_file,
                          '-o', self.target_path,
-                         self.mal2html, self.stage_path])
+                         os.path.join(self.site.tools_path, 'pintail-html-mallard-local.xsl'),
+                         self.stage_path])
 
     def get_media(self):
         refs = set()
@@ -364,18 +387,18 @@ class DucktypePage(MallardPage):
     def __init__(self, directory, source_file):
         MallardPage.__init__(self, directory, source_file)
 
-    def stage_page(self):
-        Site._makedirs(self.directory.stage_path)
-        subprocess.call(['ducktype',
-                         '-o', self.stage_path,
-                         self.source_path])
-
     @property
     def stage_file(self):
         if self.source_file.endswith('.duck'):
             return self.source_file[:-5] + '.page'
         else:
             return self.source_file
+
+    def stage_page(self):
+        Site._makedirs(self.directory.stage_path)
+        subprocess.call(['ducktype',
+                         '-o', self.stage_path,
+                         self.source_path])
 
     @classmethod
     def get_pages(cls, directory, filename):
@@ -386,33 +409,21 @@ class DucktypePage(MallardPage):
 
 class Directory(Extendable):
     def __init__(self, site, path, *, parent=None):
-        if not hasattr(self, 'site'):
-            self.site = site
-        if not hasattr(self, 'path'):
-            self.path = path
-        if not hasattr(self, 'parent'):
-            self.parent = parent
-        if not hasattr(self, 'directories'):
-            self.directories = []
-        if not hasattr(self, 'pages'):
-            self.pages = []
+        self.site = site
+        self.path = path
+        self.parent = parent
+        self.directories = []
+        self.pages = []
+
         self._search_domains = None
 
         self.read_directories()
         self.read_pages()
 
-    @classmethod
-    def is_special_path(cls, site, path):
-        return False
-
-    def get_special_path_info(self):
-        return {}
-
     @property
     def source_path(self):
         if self.parent is not None:
-            return os.path.join(self.parent.source_path,
-                                self.path.split('/')[-2])
+            return os.path.join(self.parent.source_path, self.path.split('/')[-2])
         else:
             return os.path.join(self.site.topdir, self.path[1:])
 
@@ -423,6 +434,13 @@ class Directory(Extendable):
     @property
     def target_path(self):
         return os.path.join(self.site.target_path, self.path[1:])
+
+    @classmethod
+    def is_special_path(cls, site, path):
+        return False
+
+    def get_special_path_info(self):
+        return {}
 
     def read_directories(self):
         for name in os.listdir(self.source_path):
@@ -441,9 +459,17 @@ class Directory(Extendable):
 
     def read_pages(self):
         by_page_id = {}
+        for cls in Page.iter_subclasses('get_pages_dir'):
+            for page in cls.get_pages_dir(self):
+                if page.page_id in by_page_id:
+                    raise DuplicatePageException(self,
+                                                 'Duplicate page id ' +
+                                                 page.page_id)
+                by_page_id[page.page_id] = page
+                self.pages.append(page)
         for name in os.listdir(self.source_path):
             if os.path.isfile(os.path.join(self.source_path, name)):
-                for cls in Page.iter_subclasses():
+                for cls in Page.iter_subclasses('get_pages'):
                     for page in cls.get_pages(self, name):
                         if page.page_id in by_page_id:
                             raise DuplicatePageException(self,
@@ -679,7 +705,7 @@ class Site:
         custom_xsl = self.config.get('custom_xsl') or ''
         for x in custom_xsl.split():
             ret.append(os.path.join(self.topdir, x))
-        for cls in XslProvider.iter_subclasses():
+        for cls in XslProvider.iter_subclasses('get_xsl'):
             ret.extend(cls.get_xsl(self))
         return ret
 
@@ -793,9 +819,8 @@ class Site:
         fd.write(codecs.decode(site2html, 'utf-8'))
         fd.close()
 
-        for cls in ToolsProvider.iter_subclasses():
-            if 'build_tools' in cls.__dict__:
-                cls.build_tools(self)
+        for cls in ToolsProvider.iter_subclasses('build_tools'):
+            cls.build_tools(self)
 
     def build_html(self):
         self.read_directories()
@@ -808,9 +833,8 @@ class Site:
     def build_css(self):
         self.read_directories()
 
-        for cls in CssProvider.iter_subclasses():
-            if 'build_css' in cls.__dict__:
-                cls.build_css(self)
+        for cls in CssProvider.iter_subclasses('build_css'):
+            cls.build_css(self)
 
     def build_js(self):
         self.read_directories()

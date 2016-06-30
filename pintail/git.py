@@ -23,14 +23,14 @@ import pintail.site
 
 class GitDirectory(pintail.site.Directory):
     def __init__(self, site, path, *, parent=None):
-        self.site = site
-        self.path = path
-        self.parent = parent
-        self.repo = self.site.config.get('git_repository', self.path)
-        self.branch = self.site.config.get('git_branch', self.path) or 'master'
+        self.repo = site.config.get('git_repository', path)
+        self.branch = site.config.get('git_branch', path) or 'master'
         self.repodir = (self.repo.replace('/', '!') + '@@' +
                         self.branch.replace('/', '!'))
-        self.absrepodir = os.path.join(self.site.pindir, 'git', self.repodir)
+        self.absrepodir = os.path.join(site.pindir, 'git', self.repodir)
+
+        super().__init__(site, path, parent=parent)
+
         if os.path.exists(self.absrepodir):
             if self.site.config._update and self.site.config.get('git_update', self.path) != 'false':
                 self.site.log('UPDATE', self.repo + '@' + self.branch)
@@ -47,7 +47,10 @@ class GitDirectory(pintail.site.Directory):
                                  cwd=os.path.join(self.site.pindir, 'git'))
             p.communicate()
 
-        pintail.site.Directory.__init__(self, site, path)
+    @property
+    def source_path(self):
+        return os.path.join(self.absrepodir,
+                            self.site.config.get('git_directory', self.path) or '')
 
     @classmethod
     def is_special_path(cls, site, path):
@@ -61,9 +64,3 @@ class GitDirectory(pintail.site.Directory):
             'source_branch': self.branch,
             'source_directory': self.site.config.get('git_directory', self.path) or ''
         }
-
-    @property
-    def source_path(self):
-        return os.path.join(self.absrepodir,
-                            self.site.config.get('git_directory', self.path) or '')
-
