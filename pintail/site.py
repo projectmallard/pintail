@@ -115,6 +115,10 @@ class Page(Extendable):
     def target_extension(self):
         return self.site.config.get('html_extension') or '.html'
 
+    @property
+    def searchable(self):
+        return False
+
     def get_cache_data(self):
         return None
 
@@ -156,6 +160,10 @@ class MallardPage(Page, ToolsProvider, CssProvider):
     @property
     def page_id(self):
         return self._mallard_page_id
+
+    @property
+    def searchable(self):
+        return True
 
     @classmethod
     def build_tools(cls, site):

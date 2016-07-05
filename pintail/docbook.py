@@ -36,6 +36,10 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
     def page_id(self):
         return 'index'
 
+    @property
+    def searchable(self):
+        return True
+
     @classmethod
     def build_tools(cls, site):
         db2html = os.path.join(site.yelp_xsl_path, 'xslt', 'docbook', 'html', 'db2html.xsl')

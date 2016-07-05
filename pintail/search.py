@@ -30,7 +30,8 @@ class SearchProvider(pintail.site.Extendable):
         if not self.site.get_dir_filter(directory):
             return
         for page in directory.pages:
-            self.index_page(page)
+            if page.searchable:
+                self.index_page(page)
 
     def index_page(self, page):
         pass
