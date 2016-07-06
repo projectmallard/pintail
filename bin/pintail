@@ -23,6 +23,8 @@ import os
 import sys
 
 import pintail.site
+import pintail.mallard
+import pintail.ducktype
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
