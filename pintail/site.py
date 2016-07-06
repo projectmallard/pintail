@@ -513,6 +513,8 @@ class Directory(Extendable):
                 return self.path
             elif domain == 'global':
                 return '/'
+            elif domain == 'none':
+                return 'none'
             elif self.parent is None:
                 return '/'
             else:

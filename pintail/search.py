@@ -30,7 +30,18 @@ class SearchProvider(pintail.site.Extendable):
         if not self.site.get_dir_filter(directory):
             return
         for page in directory.pages:
-            if page.searchable:
+            searchable = page.searchable
+            if searchable:
+                dms = directory.get_search_domains()
+                if dms[0] == 'none':
+                    continue
+                for dm in dms:
+                    if isinstance(dm, list):
+                        if dm[0] == page.page_id and dm[1] == 'none':
+                            print(page.page_id)
+                            searchable = False
+                            break
+            if searchable:
                 self.index_page(page)
 
     def index_page(self, page):
