@@ -71,6 +71,19 @@ class XslProvider(Extendable):
     def get_xsl(cls, site):
         return []
 
+    @classmethod
+    def get_xsl_params(cls, output, obj):
+        return []
+
+    @classmethod
+    def get_xsltproc_args(cls, output, obj):
+        ret = []
+        for c in XslProvider.iter_subclasses('get_xsl_params'):
+            for pair in c.get_xsl_params(output, obj):
+                ret.extend(['--stringparam', pair[0], pair[1]])
+        return ret
+
+
 
 class Page(Extendable):
     def __init__(self, directory, source_file):
@@ -87,6 +100,12 @@ class Page(Extendable):
     @property
     def site_id(self):
         return self.directory.path + self.page_id
+
+    @property
+    def site_path(self):
+        root = self.site.config.get('site_root') or '/'
+        ext = self.site.config.get('link_extension') or ''
+        return root + self.site_id[1:] + ext
 
     @property
     def source_file(self):

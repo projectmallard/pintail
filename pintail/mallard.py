@@ -207,21 +207,25 @@ class MallardPage(pintail.site.Page,
     def build_html(self):
         self.site.log('HTML', self.site_id)
         pinfo = self.directory.get_special_path_info()
-        subprocess.call(['xsltproc',
-                         '--stringparam', 'mal.cache.file', self.site.cache_path,
-                         '--stringparam', 'pintail.site.dir', self.directory.path,
-                         '--stringparam', 'pintail.site.root',
-                         self.site.config.get('site_root') or '/',
-                         '--stringparam', 'pintail.source.repository',
-                         pinfo.get('source_repository', ''),
-                         '--stringparam', 'pintail.source.branch',
-                         pinfo.get('source_branch', ''),
-                         '--stringparam', 'pintail.source.directory',
-                         pinfo.get('source_directory', ''),
-                         '--stringparam', 'pintail.source.file', self.source_file,
-                         '-o', self.target_path,
-                         os.path.join(self.site.tools_path, 'pintail-html-mallard-local.xsl'),
-                         self.stage_path])
+        cmd = ['xsltproc',
+               '--stringparam', 'mal.cache.file', self.site.cache_path,
+               '--stringparam', 'pintail.site.dir', self.directory.path,
+               '--stringparam', 'pintail.site.root',
+               self.site.config.get('site_root') or '/',
+               '--stringparam', 'pintail.source.repository',
+               pinfo.get('source_repository', ''),
+               '--stringparam', 'pintail.source.branch',
+               pinfo.get('source_branch', ''),
+               '--stringparam', 'pintail.source.directory',
+               pinfo.get('source_directory', ''),
+               '--stringparam', 'pintail.source.file', self.source_file]
+        cmd.extend(pintail.site.XslProvider.get_xsltproc_args('html', self))
+        cmd.extend([
+            '-o', self.target_path,
+            os.path.join(self.site.tools_path, 'pintail-html-mallard-local.xsl'),
+            self.stage_path])
+        subprocess.call(cmd)
+
 
     def get_media(self):
         refs = set()

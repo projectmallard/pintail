@@ -191,16 +191,19 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
 
     def build_html(self):
         self.site.log('HTML', self.site_id)
-        subprocess.call(['xsltproc',
-                         '--xinclude',
-                         '--stringparam', 'mal.cache.file', self.site.cache_path,
-                         '--stringparam', 'pintail.format', 'docbook',
-                         '--stringparam', 'pintail.site.dir', self.directory.path,
-                         '--stringparam', 'pintail.site.root',
-                         self.site.config.get('site_root') or '/',
-                         '-o', self.target_path,
-                         os.path.join(self.site.tools_path, 'pintail-html-docbook-local.xsl'),
-                         self.source_path])
+        cmd = ['xsltproc',
+               '--xinclude',
+               '--stringparam', 'mal.cache.file', self.site.cache_path,
+               '--stringparam', 'pintail.format', 'docbook',
+               '--stringparam', 'pintail.site.dir', self.directory.path,
+               '--stringparam', 'pintail.site.root',
+               self.site.config.get('site_root') or '/']
+        cmd.extend(pintail.site.XslProvider.get_xsltproc_args('html', self))
+        cmd.extend([
+            '-o', self.target_path,
+            os.path.join(self.site.tools_path, 'pintail-html-docbook-local.xsl'),
+            self.source_path])
+        subprocess.call(cmd)
 
     def get_media(self):
         return []
