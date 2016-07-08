@@ -78,6 +78,7 @@ class Page(Extendable):
         self.site = directory.site
 
         self._source_file = source_file
+        self._search_domains = None
 
     @property
     def page_id(self):
@@ -139,6 +140,25 @@ class Page(Extendable):
 
     def build_html(self):
         return
+
+    def get_search_domains(self):
+        if self._search_domains is not None:
+            return self._search_domains
+
+        dms = self.directory.get_search_domains()
+        if dms[0] == 'none':
+            return ['none']
+        ret = []
+        for dm in dms:
+            if isinstance(dm, list):
+                if dm[0] == self.page_id and dm[1] == 'none':
+                    if dm[1] == 'none':
+                        return ['none']
+                    else:
+                        ret.append(dm[1])
+            else:
+                ret.append(dm)
+        return ret
 
     @classmethod
     def get_pages(cls, directory, filename):
