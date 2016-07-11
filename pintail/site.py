@@ -170,7 +170,7 @@ class Page(Extendable):
         ret = []
         for dm in dms:
             if isinstance(dm, list):
-                if dm[0] == self.page_id and dm[1] == 'none':
+                if dm[0] == self.page_id:
                     if dm[1] == 'none':
                         return ['none']
                     else:
