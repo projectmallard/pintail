@@ -241,12 +241,14 @@ class MallardPage(pintail.site.Page,
         _accumulate_refs(self._tree.getroot())
         return refs
 
-    def get_title(self):
-        res = self._tree.xpath('/mal:page/mal:info/mal:title[@type="search"]',
-                               namespaces=NS_MAP)
-        if len(res) == 0:
-            res = self._tree.xpath('/mal:page/mal:info/mal:title[@type="text"][@role="search"]',
+    def get_title(self, hint=None):
+        res = []
+        if hint == 'search':
+            res = self._tree.xpath('/mal:page/mal:info/mal:title[@type="search"]',
                                    namespaces=NS_MAP)
+            if len(res) == 0:
+                res = self._tree.xpath('/mal:page/mal:info/mal:title[@type="text"][@role="search"]',
+                                       namespaces=NS_MAP)
         if len(res) == 0:
             res = self._tree.xpath('/mal:page/mal:info/mal:title[@type="text"][not(@role)]',
                                    namespaces=NS_MAP)
@@ -257,12 +259,14 @@ class MallardPage(pintail.site.Page,
         else:
             return res[-1].xpath('string(.)')
 
-    def get_desc(self):
-        res = self._tree.xpath('/mal:page/mal:info/mal:desc[@type="search"]',
-                               namespaces=NS_MAP)
-        if len(res) == 0:
-            res = self._tree.xpath('/mal:page/mal:info/mal:desc[@type="text"][@role="search"]',
+    def get_desc(self, hint=None):
+        res = []
+        if hint == 'search':
+            res = self._tree.xpath('/mal:page/mal:info/mal:desc[@type="search"]',
                                    namespaces=NS_MAP)
+            if len(res) == 0:
+                res = self._tree.xpath('/mal:page/mal:info/mal:desc[@type="text"][@role="search"]',
+                                       namespaces=NS_MAP)
         if len(res) == 0:
             res = self._tree.xpath('/mal:page/mal:info/mal:desc[@type="text"][not(@role)]',
                                    namespaces=NS_MAP)
@@ -273,6 +277,21 @@ class MallardPage(pintail.site.Page,
         else:
             return res[-1].xpath('string(.)')
 
+    def get_content(self):
+        # FIXME: could be good to have smarter block/inline handling, conditional
+        # processing, correct block fallback. Probably should just have a mal2text
+        # in yelp-xsl.
+        def _accumulate_text(node):
+            ret = ''
+            for child in node:
+                if node.tag == MAL_NS + 'info':
+                    pass
+                else:
+                    ret += child.text or ''
+                    ret += _accumulate_text(child)
+                    ret += child.tail or ''
+            return ret
+        return _accumulate_text(self._tree.getroot())
 
     @classmethod
     def get_pages(cls, directory, filename):

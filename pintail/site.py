@@ -145,16 +145,16 @@ class Page(Extendable):
     def get_media(self):
         return []
 
-    def get_title(self):
+    def get_title(self, hint=None):
         return ''
 
-    def get_desc(self):
+    def get_desc(self, hint=None):
         return ''
 
-    def get_keywords(self):
+    def get_keywords(self, hint=None):
         return ''
 
-    def get_content(self):
+    def get_content(self, hint=None):
         return ''
 
     def build_html(self):
