@@ -27,10 +27,43 @@ MAL_NS = '{http://projectmallard.org/1.0/}'
 SITE_NS = '{http://projectmallard.org/site/1.0/}'
 PINTAIL_NS = '{http://pintail.io/}'
 DOCBOOK_NS = '{http://docbook.org/ns/docbook}'
+DOCBOOK_CHUNKS_ = [
+    'appendix', 'article', 'bibliography', 'bibliodiv', 'book', 'chapter', 'colophon',
+    'dedication', 'glossary', 'glossdiv', 'index', 'lot', 'part', 'preface', 'refentry',
+    'reference', 'sect1', 'sect2', 'sect3', 'sect4', 'sect5', 'section', 'setindex',
+    'simplesect', 'toc']
+DOCBOOK_CHUNKS = DOCBOOK_CHUNKS_ + [DOCBOOK_NS + el for el in DOCBOOK_CHUNKS_]
+DOCBOOK_INFOS = [
+    DOCBOOK_NS + 'info', 'appendixinfo', 'articleinfo', 'bibliographyinfo', 'bookinfo',
+    'chapterinfo', 'glossaryinfo', 'indexinfo', 'partinfo', 'prefaceinfo', 'refentryinfo',
+    'referenceinfo', 'sect1info', 'sect2info', 'sect3info', 'sect4info', 'sect5info',
+    'sectioninfo', 'setindexinfo']
 
 class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.CssProvider):
     def __init__(self, directory, source_file):
         pintail.site.Page.__init__(self, directory, source_file)
+        self.stage_page()
+        self._tree = etree.parse(self.stage_path)
+        def _accumulate_pages(node, depth, maxdepth):
+            ret = []
+            for child in node:
+                if child.tag in DOCBOOK_CHUNKS:
+                    ret.append(child)
+                    if depth < maxdepth:
+                        ret.extend(_accumulate_pages(child, depth + 1, maxdepth))
+            return ret
+        maxdepth = 1
+        if self._tree.getroot().tag in ('book', DOCBOOK_NS + 'book'):
+            maxdepth = 2
+        pi = self._tree.getroot().xpath('string(/processing-instruction("db.chunk.max_depth"))')
+        if len(pi) > 0:
+            try:
+                maxdepth = int(pi)
+            except:
+                pass
+        self.maxdepth = maxdepth
+        pages = _accumulate_pages(self._tree.getroot(), 1, maxdepth)
+        self.subpages = [DocBookSubPage(self, el) for el in pages]
 
     @property
     def page_id(self):
@@ -39,6 +72,45 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
     @property
     def searchable(self):
         return True
+
+    def get_title_node(self, node, hint=None):
+        title = ''
+        for child in node:
+            if child.tag in DOCBOOK_INFOS:
+                for info in child:
+                    if info.tag in ('title', DOCBOOK_NS + 'title'):
+                        title = info.xpath('string(.)')
+            elif child.tag in ('title', DOCBOOK_NS + 'title'):
+                title = child.xpath('string(.)')
+                break
+        return title
+
+    def get_title(self, hint=None):
+        return self.get_title_node(self._tree.getroot(), hint=hint)
+
+    def get_content_node(self, node, hint=None):
+        depth = 0
+        parent = node.getparent()
+        while parent is not None:
+            depth += 1
+            parent = parent.getparent()
+        def _accumulate_text(node):
+            ret = ''
+            for child in node:
+                if not isinstance(child.tag, str):
+                    continue
+                if node.tag in DOCBOOK_INFOS:
+                    continue
+                if depth < self.maxdepth and child.tag in DOCBOOK_CHUNKS:
+                    continue
+                ret += child.text or ''
+                ret += _accumulate_text(child)
+                ret += child.tail or ''
+            return ret
+        return _accumulate_text(node)
+
+    def get_content(self, hint=None):
+        return self.get_content_node(self._tree.getroot(), hint=hint)
 
     @classmethod
     def build_tools(cls, site):
@@ -149,9 +221,8 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
                     fd.close()
 
     def stage_page(self):
-        return
         pintail.site.Site._makedirs(self.directory.stage_path)
-        subprocess.call(['xmllint', '--xinclude',
+        subprocess.call(['xmllint', '--xinclude', '--noent',
                          '-o', self.stage_path,
                          self.source_path])
 
@@ -224,5 +295,27 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
     def get_pages(cls, directory, filename):
         dbfile = directory.site.config.get('docbook', directory.path)
         if filename == dbfile:
-            return [DocBookPage(directory, filename)]
+            toppage = DocBookPage(directory, filename)
+            return [toppage] + toppage.subpages
         return []
+
+class DocBookSubPage(pintail.site.Page):
+    def __init__(self, db_page, element):
+        pintail.site.Page.__init__(self, db_page.directory, db_page.source_file)
+        self._db_page = db_page
+        self._element = element
+        self._sect_id = element.get('id') or element.get(XML_NS + 'id')
+
+    @property
+    def page_id(self):
+        return self._sect_id
+
+    @property
+    def searchable(self):
+        return True
+
+    def get_title(self, hint=None):
+        return self._db_page.get_title_node(self._element, hint=hint)
+
+    def get_content(self, hint=None):
+        return self._db_page.get_content_node(self._element, hint=hint)

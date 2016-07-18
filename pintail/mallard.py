@@ -277,19 +277,20 @@ class MallardPage(pintail.site.Page,
         else:
             return res[-1].xpath('string(.)')
 
-    def get_content(self):
+    def get_content(self, hint=None):
         # FIXME: could be good to have smarter block/inline handling, conditional
         # processing, correct block fallback. Probably should just have a mal2text
         # in yelp-xsl.
         def _accumulate_text(node):
             ret = ''
             for child in node:
+                if not isinstance(child.tag, str):
+                    continue
                 if node.tag == MAL_NS + 'info':
-                    pass
-                else:
-                    ret += child.text or ''
-                    ret += _accumulate_text(child)
-                    ret += child.tail or ''
+                    continue
+                ret += child.text or ''
+                ret += _accumulate_text(child)
+                ret += child.tail or ''
             return ret
         return _accumulate_text(self._tree.getroot())
 
