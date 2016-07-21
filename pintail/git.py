@@ -29,23 +29,23 @@ class GitDirectory(pintail.site.Directory):
                         self.branch.replace('/', '!'))
         self.absrepodir = os.path.join(site.pindir, 'git', self.repodir)
 
-        super().__init__(site, path, parent=parent)
-
         if os.path.exists(self.absrepodir):
-            if self.site.config._update and self.site.config.get('git_update', self.path) != 'false':
-                self.site.log('UPDATE', self.repo + '@' + self.branch)
+            if site.config._update and site.config.get('git_update', path) != 'false':
+                site.log('UPDATE', self.repo + '@' + self.branch)
                 p = subprocess.Popen(['git', 'pull', '-q', '-r',
                                       'origin', self.branch],
                                      cwd=self.absrepodir)
                 p.communicate()
         else:
-            self.site.log('CLONE', self.repo + '@' + self.branch)
-            pintail.site.Site._makedirs(os.path.join(self.site.pindir, 'git'))
+            site.log('CLONE', self.repo + '@' + self.branch)
+            pintail.site.Site._makedirs(os.path.join(site.pindir, 'git'))
             p = subprocess.Popen(['git', 'clone', '-q',
                                   '-b', self.branch, '--single-branch',
                                   self.repo, self.repodir],
-                                 cwd=os.path.join(self.site.pindir, 'git'))
+                                 cwd=os.path.join(site.pindir, 'git'))
             p.communicate()
+
+        super().__init__(site, path, parent=parent)
 
     @property
     def source_path(self):
