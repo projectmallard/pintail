@@ -104,7 +104,9 @@ class Page(Extendable):
     @property
     def site_path(self):
         root = self.site.config.get('site_root') or '/'
-        ext = self.site.config.get('link_extension') or ''
+        ext = self.site.config.get('link_extension')
+        if ext is None:
+            ext = self.site.config.get('html_extension') or '.html'
         return root + self.site_id[1:] + ext
 
     @property

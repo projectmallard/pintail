@@ -23,7 +23,7 @@ Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
                 xmlns:pintail="http://pintail.io/"
                 xmlns="http://www.w3.org/1999/xhtml"
                 extension-element-prefixes="exsl"
-                exclude-result-prefixes="mal str exsl"
+                exclude-result-prefixes="mal str exsl pintail"
                 version="1.0">
 
 <xsl:param name="pintail.site.root" select="'/'"/>
