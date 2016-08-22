@@ -220,9 +220,6 @@ class Directory(Extendable):
     def is_special_path(cls, site, path):
         return False
 
-    def get_special_path_info(self):
-        return {}
-
     def read_directories(self):
         for name in os.listdir(self.source_path):
             if os.path.isdir(os.path.join(self.source_path, name)):

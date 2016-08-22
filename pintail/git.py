@@ -19,7 +19,7 @@ import subprocess
 
 import pintail.site
 
-class GitDirectory(pintail.site.Directory):
+class GitDirectory(pintail.site.Directory, pintail.site.XslProvider):
     def __init__(self, site, path, *, parent=None):
         self.repo = site.config.get('git_repository', path)
         self.branch = site.config.get('git_branch', path) or 'master'
@@ -56,9 +56,14 @@ class GitDirectory(pintail.site.Directory):
         if repo is not None:
             return True
 
-    def get_special_path_info(self):
-        return {
-            'source_repository': self.repo,
-            'source_branch': self.branch,
-            'source_directory': self.site.config.get('git_directory', self.path) or ''
-        }
+    @classmethod
+    def get_xsl_params(cls, output, obj):
+        if not (output == 'html' and isinstance(obj, pintail.site.Page)):
+            return []
+        if isinstance(obj.directory, cls):
+            d = obj.directory
+            return [('pintail.git.repository', d.repo),
+                    ('pintail.git.branch', d.branch),
+                    ('pintail.git.directory',
+                     d.site.config.get('git_directory', d.path) or '')]
+        return []
