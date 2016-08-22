@@ -42,14 +42,6 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
         pintail.site.Page.__init__(self, directory, source_file)
         self.stage_page()
         self._tree = etree.parse(self.stage_path)
-        def _accumulate_pages(node, depth, maxdepth):
-            ret = []
-            for child in node:
-                if child.tag in DOCBOOK_CHUNKS:
-                    ret.append(child)
-                    if depth < maxdepth:
-                        ret.extend(_accumulate_pages(child, depth + 1, maxdepth))
-            return ret
         maxdepth = 1
         if self._tree.getroot().tag in ('book', DOCBOOK_NS + 'book'):
             maxdepth = 2
@@ -60,6 +52,39 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
             except:
                 pass
         self.maxdepth = maxdepth
+
+        self._fixed = False
+        self._fixid = 1
+        def _fixids(node):
+            if node.tag in DOCBOOK_CHUNKS:
+                chunkid = node.get('id') or node.get(XML_NS + 'id')
+                if chunkid is None:
+                    if node is self._tree.getroot():
+                        chunkid = 'index'
+                    else:
+                        while self._tree.xpath('count(//*[@id = "%s" or @xml:id = "%s"])' %
+                                               ('page' + str(self._fixid), 'page' + str(self._fixid))) > 0:
+                            self._fixid += 1
+                        chunkid = 'page' + str(self._fixid)
+                    if node.tag.startswith(DOCBOOK_NS):
+                        node.set(XML_NS + 'id', chunkid)
+                    else:
+                        node.set('id', chunkid)
+                    self._fixed = True
+                for child in node:
+                    _fixids(child)
+        _fixids(self._tree.getroot())
+        if self._fixed:
+            self._tree.write(self.stage_path)
+
+        def _accumulate_pages(node, depth, maxdepth):
+            ret = []
+            for child in node:
+                if child.tag in DOCBOOK_CHUNKS:
+                    ret.append(child)
+                    if depth < maxdepth:
+                        ret.extend(_accumulate_pages(child, depth + 1, maxdepth))
+            return ret
         pages = _accumulate_pages(self._tree.getroot(), 1, maxdepth)
         self.subpages = [DocBookSubPage(self, el) for el in pages]
 
@@ -230,7 +255,7 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
             ret = etree.Element(PINTAIL_NS + 'external')
             ret.set('id', self.directory.path + 'index')
             ret.set(SITE_NS + 'dir', self.directory.path)
-            dbfile = etree.parse(self.source_path)
+            dbfile = etree.parse(self.stage_path)
             dbfile.xinclude()
             info = None
             title = None
@@ -271,7 +296,7 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
         cmd.extend([
             '-o', self.target_path,
             os.path.join(self.site.tools_path, 'pintail-html-docbook-local.xsl'),
-            self.source_path])
+            self.stage_path])
         subprocess.call(cmd)
 
     def get_media(self):
