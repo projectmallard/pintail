@@ -1,0 +1,7 @@
+pintail 0.4
+===========
+* Use get_xsl_params for git repo info instead of get_special_path_info
+* Automatically set missing ID attrs on DocBook chunked elements, #24
+* Fixed license info, #17 (dhanvi)
+* Fixed link_extension defaulting
+* Fixed XML namespace leakage

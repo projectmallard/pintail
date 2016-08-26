@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='pintail',
-    version='0.3',
+    version='0.4',
     description='Build complete web site from Mallard sources.',
     packages=['pintail'],
     namespace_packages=['pintail'],
