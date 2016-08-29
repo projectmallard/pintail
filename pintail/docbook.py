@@ -21,6 +21,7 @@ from lxml import etree
 import pintail.site
 
 XML_NS = '{http://www.w3.org/XML/1998/namespace}'
+XLINK_NS = '{https://www.w3.org/1999/xlink}'
 MAL_NS = '{http://projectmallard.org/1.0/}'
 SITE_NS = '{http://projectmallard.org/site/1.0/}'
 PINTAIL_NS = '{http://pintail.io/}'
@@ -300,15 +301,18 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
         subprocess.call(cmd)
 
     def get_media(self):
-        return []
         refs = set()
         def _accumulate_refs(node):
-            src = node.get('src', None)
+            src = node.get('fileref', None)
             if src is not None and ':' not in src:
                 refs.add(src)
-            href = node.get('href', None)
+            href = node.get(XLINK_NS + 'href', None)
             if href is not None and ':' not in href:
                 refs.add(href)
+            if node.tag == 'ulink':
+                href = node.get('url', None)
+                if href is not None and ':' not in href:
+                    refs.add(href)
             for child in node:
                 _accumulate_refs(child)
         _accumulate_refs(self._tree.getroot())

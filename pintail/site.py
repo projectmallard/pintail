@@ -328,9 +328,12 @@ class Directory(Extendable):
             else:
                 source = os.path.join(self.source_path, fname)
                 target = os.path.join(self.target_path, fname)
-            self.site.log('MEDIA', self.path + os.path.basename(fname))
+            self.site.log('MEDIA', self.path + fname)
             Site._makedirs(os.path.dirname(target))
-            shutil.copyfile(source, target)
+            try:
+                shutil.copyfile(source, target)
+            except:
+                self.site.logger.warn('Could not copy file %s' % fname)
 
     def build_files(self):
         for subdir in self.directories:
