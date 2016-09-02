@@ -42,7 +42,7 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
     def __init__(self, directory, source_file):
         pintail.site.Page.__init__(self, directory, source_file)
         self.stage_page()
-        self._tree = etree.parse(self.stage_path)
+        self._tree = etree.parse(self.get_stage_path())
         maxdepth = 1
         if self._tree.getroot().tag in ('book', DOCBOOK_NS + 'book'):
             maxdepth = 2
@@ -76,7 +76,7 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
                     _fixids(child)
         _fixids(self._tree.getroot())
         if self._fixed:
-            self._tree.write(self.stage_path)
+            self._tree.write(self.get_stage_path())
 
         def _accumulate_pages(node, depth, maxdepth):
             ret = []
@@ -88,6 +88,20 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
             return ret
         pages = _accumulate_pages(self._tree.getroot(), 1, maxdepth)
         self.subpages = [DocBookSubPage(self, el) for el in pages]
+        self._langtrees = {}
+        self._notlangs = set()
+
+    def _get_tree(self, lang=None):
+        if lang is None or lang in self._notlangs:
+            return self._tree
+        if lang in self._langtrees:
+            return self._langtrees[lang]
+        if self.directory.translation_provider.translate_page(self, lang):
+            self._langtrees[lang] = etree.parse(self.get_stage_path(lang))
+            return self._langtrees[lang]
+        else:
+            self._notlangs.add(lang)
+            return self._tree
 
     @property
     def page_id(self):
@@ -221,9 +235,11 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
 
         seenlangs = []
         for page in site.root.iter_pages():
-            if isinstance(page, DocBookPage):
+            if not isinstance(page, DocBookPage):
+                continue
+            for lc in [None] + site.get_langs():
                 try:
-                    doc = etree.parse(page.source_path).getroot()
+                    doc = page._get_tree(lc).getroot()
                     lang = doc.get(XML_NS + 'lang', doc.get('lang', 'C'))
                 except:
                     continue
@@ -236,7 +252,7 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
                 subprocess.call(['xsltproc',
                                  '-o', site.target_path,
                                  '--stringparam', 'out', csspath,
-                                 cssxsl, page.source_path])
+                                 cssxsl, page.get_stage_path(lc)])
                 custom_css = site.config.get('custom_css')
                 if custom_css is not None:
                     custom_css = os.path.join(site.topdir, custom_css)
@@ -245,18 +261,18 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
                     fd.close()
 
     def stage_page(self):
-        pintail.site.Site._makedirs(self.directory.stage_path)
+        pintail.site.Site._makedirs(self.directory.get_stage_path())
         subprocess.call(['xmllint', '--xinclude', '--noent',
-                         '-o', self.stage_path,
+                         '-o', self.get_stage_path(),
                          self.source_path])
 
-    def get_cache_data(self):
+    def get_cache_data(self, lang=None):
         ret = None
         try:
             ret = etree.Element(PINTAIL_NS + 'external')
             ret.set('id', self.directory.path + 'index')
             ret.set(SITE_NS + 'dir', self.directory.path)
-            dbfile = etree.parse(self.stage_path)
+            dbfile = self._get_tree(lang)
             dbfile.xinclude()
             info = None
             title = None
@@ -288,7 +304,7 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
         self.site.log('HTML', self.site_id)
         cmd = ['xsltproc',
                '--xinclude',
-               '--stringparam', 'mal.cache.file', self.site.cache_path,
+               '--stringparam', 'mal.cache.file', self.site.get_cache_path(),
                '--stringparam', 'pintail.format', 'docbook',
                '--stringparam', 'pintail.site.dir', self.directory.path,
                '--stringparam', 'pintail.site.root',
@@ -297,7 +313,7 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
         cmd.extend([
             '-o', self.target_path,
             os.path.join(self.site.tools_path, 'pintail-html-docbook-local.xsl'),
-            self.stage_path])
+            self.get_stage_path()])
         subprocess.call(cmd)
 
     def get_media(self):

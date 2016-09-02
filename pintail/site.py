@@ -119,9 +119,8 @@ class Page(Extendable):
     def stage_file(self):
         return self.source_file
 
-    @property
-    def stage_path(self):
-        return os.path.join(self.directory.stage_path, self.stage_file)
+    def get_stage_path(self, lang=None):
+        return os.path.join(self.directory.get_stage_path(lang), self.stage_file)
 
     @property
     def target_file(self):
@@ -139,7 +138,7 @@ class Page(Extendable):
     def searchable(self):
         return False
 
-    def get_cache_data(self):
+    def get_cache_data(self, lang=None):
         return None
 
     def get_media(self):
@@ -202,15 +201,18 @@ class Directory(Extendable):
         self.read_pages()
 
     @property
+    def translation_provider(self):
+        return self.site.translation_provider
+
+    @property
     def source_path(self):
         if self.parent is not None:
             return os.path.join(self.parent.source_path, self.path.split('/')[-2])
         else:
             return os.path.join(self.site.topdir, self.path[1:])
 
-    @property
-    def stage_path(self):
-        return os.path.join(self.site.stage_path, self.path[1:])
+    def get_stage_path(self, lang=None):
+        return os.path.join(self.site.get_stage_path(lang), self.path[1:])
 
     @property
     def target_path(self):
@@ -340,7 +342,7 @@ class Directory(Extendable):
             subdir.build_files()
         if not self.site.get_dir_filter(self):
             return
-        Site._makedirs(self.stage_path)
+        Site._makedirs(self.get_stage_path())
         globs = self.site.config.get('extra_files', self.path)
         if globs is not None:
             for glb in globs.split():
@@ -407,7 +409,7 @@ class Directory(Extendable):
                              '--stringparam', 'pintail.site.root', root,
                              '--stringparam', 'feed.exclude_styles',
                              self.site.config.get('feed_exclude_styles', self.path) or '',
-                             atomxsl, self.site.cache_path])
+                             atomxsl, self.site.get_cache_path()])
 
 
 
@@ -423,11 +425,9 @@ class Site:
     def __init__(self, config):
         self.topdir = os.path.dirname(config)
         self.pindir = os.path.join(self.topdir, '__pintail__')
-        self.stage_path = os.path.join(self.pindir, 'stage')
         self.target_path = os.path.join(self.pindir, 'build')
         self.tools_path = os.path.join(self.pindir, 'tools')
 
-        self.cache_path = os.path.join(self.tools_path, 'pintail.cache')
         self.root = None
         self.config = Config(self, config)
         self.verbose = False
@@ -451,6 +451,14 @@ class Site:
             searchmod = importlib.import_module(search[:dot])
             searchcls = getattr(searchmod, search[dot+1:])
             self.search_provider = searchcls(self)
+
+        self.translation_provider = None
+        trans = self.config.get('translation_provider')
+        if trans is not None:
+            dot = trans.rindex('.')
+            transmod = importlib.import_module(trans[:dot])
+            transcls = getattr(transmod, trans[dot+1:])
+            self.translation_provider = transcls(self)
 
     @classmethod
     def init_site(cls, directory):
@@ -492,11 +500,28 @@ class Site:
             ret.extend(cls.get_xsl(self))
         return ret
 
+    def get_langs(self):
+        if self.translation_provider is not None:
+            return self.translation_provider.get_site_langs()
+        return []
+
+    def get_stage_path(self, lang=None):
+        if lang is not None:
+            return os.path.join(self.pindir, 'stage-' + lang)
+        else:
+            return os.path.join(self.pindir, 'stage')
+
+    def get_cache_path(self, lang=None):
+        if lang is not None:
+            return os.path.join(self.tools_path, 'pintail-' + lang + '.cache')
+        else:
+            return os.path.join(self.tools_path, 'pintail.cache')
+
     def read_directories(self):
         if self.root is not None:
             return
-        if os.path.exists(self.stage_path):
-            shutil.rmtree(self.stage_path)
+        if os.path.exists(self.get_stage_path()):
+            shutil.rmtree(self.get_stage_path())
         self.root = Directory(self, '/')
         directories = {'/': self.root}
         for directory in self.root.iter_directories():
@@ -548,7 +573,7 @@ class Site:
 
     def build_cache(self):
         self.read_directories()
-        self.log('CACHE', '__pintail__/tools/pintail.cache')
+        self.log('CACHE', self.get_cache_path())
         cache = etree.Element(CACHE_NS + 'cache', nsmap={
             None: 'http://projectmallard.org/1.0/',
             'cache': 'http://projectmallard.org/cache/1.0/',
@@ -560,8 +585,22 @@ class Site:
             if cdata is not None:
                 cache.append(cdata)
         Site._makedirs(self.tools_path)
-        cache.getroottree().write(self.cache_path,
+        cache.getroottree().write(self.get_cache_path(),
                                   pretty_print=True)
+        for lang in self.get_langs():
+            self.log('CACHE', self.get_cache_path(lang))
+            cache = etree.Element(CACHE_NS + 'cache', nsmap={
+                None: 'http://projectmallard.org/1.0/',
+                'cache': 'http://projectmallard.org/cache/1.0/',
+                'site': 'http://projectmallard.org/site/1.0/',
+                'pintail': 'http://pintail.io/'
+            })
+            for page in self.root.iter_pages():
+                cdata = page.get_cache_data(lang)
+                if cdata is not None:
+                    cache.append(cdata)
+            cache.getroottree().write(self.get_cache_path(lang),
+                                      pretty_print=True)
 
     def build_tools(self):
         Site._makedirs(self.tools_path)
@@ -657,7 +696,7 @@ class Site:
         self.log('JS', '/yelp.js')
         subprocess.call(['xsltproc',
                          '-o', os.path.join(self.target_path, 'yelp.js'),
-                         jsxsl, self.cache_path])
+                         jsxsl, self.get_cache_path()])
 
         if os.path.exists(os.path.join(jspath, 'highlight.pack.js')):
             self.log('JS', '/highlight.pack.js')
@@ -712,7 +751,7 @@ class Site:
             fd.close()
 
             brushes = subprocess.check_output(['xsltproc',
-                                               jsxsl, self.cache_path],
+                                               jsxsl, self.get_cache_path()],
                                               universal_newlines=True)
             for brush in brushes.split():
                 self.log('JS', '/' + brush)
@@ -758,7 +797,7 @@ class Site:
             '</xsl:stylesheet>\n'
             )
 
-        cmd = subprocess.Popen(['xsltproc', '-', self.cache_path],
+        cmd = subprocess.Popen(['xsltproc', '-', self.get_cache_path()],
                                stdin=subprocess.PIPE,
                                stdout=subprocess.PIPE)
         cmd.stdin.write(xsl.encode())
@@ -790,6 +829,8 @@ class Site:
         return False
 
     def log(self, tag, data):
+        if data.startswith(self.pindir + '/'):
+            data = data[len(os.path.dirname(self.pindir))+1:]
         self.logger.info('%(tag)-6s %(data)s' % {'tag': tag, 'data': data})
 
     @classmethod

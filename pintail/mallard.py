@@ -37,9 +37,23 @@ class MallardPage(pintail.site.Page,
     def __init__(self, directory, source_file):
         pintail.site.Page.__init__(self, directory, source_file)
         self.stage_page()
-        self._tree = etree.parse(self.stage_path)
+        self._tree = etree.parse(self.get_stage_path())
         etree.XInclude()(self._tree.getroot())
         self._mallard_page_id = self._tree.getroot().get('id')
+        self._langtrees = {}
+        self._notlangs = set()
+
+    def _get_tree(self, lang=None):
+        if lang is None or lang in self._notlangs:
+            return self._tree
+        if lang in self._langtrees:
+            return self._langtrees[lang]
+        if self.directory.translation_provider.translate_page(self, lang):
+            self._langtrees[lang] = etree.parse(self.get_stage_path(lang))
+            return self._langtrees[lang]
+        else:
+            self._notlangs.add(lang)
+            return self._tree
 
     @property
     def page_id(self):
@@ -133,7 +147,8 @@ class MallardPage(pintail.site.Page,
         fd.close()
 
         seenlangs = []
-        for cache in [site.cache_path]:
+        for lang in [None] + site.get_langs():
+            cache = site.get_cache_path(lang)
             for page in etree.parse(cache).xpath('/cache:cache/mal:page', namespaces=NS_MAP):
                 lang = page.get(XML_NS + 'lang', 'C')
                 if lang in seenlangs:
@@ -155,12 +170,12 @@ class MallardPage(pintail.site.Page,
                     fd.close()
 
     def stage_page(self):
-        pintail.site.Site._makedirs(self.directory.stage_path)
+        pintail.site.Site._makedirs(self.directory.get_stage_path())
         subprocess.call(['xmllint', '--xinclude',
-                         '-o', self.stage_path,
+                         '-o', self.get_stage_path(),
                          self.source_path])
 
-    def get_cache_data(self):
+    def get_cache_data(self, lang=None):
         def _get_node_cache(node):
             ret = etree.Element(node.tag)
             ret.text = '\n'
@@ -198,14 +213,14 @@ class MallardPage(pintail.site.Page,
                 elif child.tag == MAL_NS + 'section':
                     ret.append(_get_node_cache(child))
             return ret
-        page = _get_node_cache(self._tree.getroot())
-        page.set(CACHE_NS + 'href', self.stage_path)
+        page = _get_node_cache(self._get_tree(lang).getroot())
+        page.set(CACHE_NS + 'href', self.get_stage_path(lang))
         return page
 
     def build_html(self):
         self.site.log('HTML', self.site_id)
         cmd = ['xsltproc',
-               '--stringparam', 'mal.cache.file', self.site.cache_path,
+               '--stringparam', 'mal.cache.file', self.site.get_cache_path(),
                '--stringparam', 'pintail.site.dir', self.directory.path,
                '--stringparam', 'pintail.site.root',
                self.site.config.get('site_root') or '/',
@@ -214,7 +229,7 @@ class MallardPage(pintail.site.Page,
         cmd.extend([
             '-o', self.target_path,
             os.path.join(self.site.tools_path, 'pintail-html-mallard-local.xsl'),
-            self.stage_path])
+            self.get_stage_path()])
         subprocess.call(cmd)
 
 
