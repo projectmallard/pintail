@@ -222,14 +222,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   </link>
 </xsl:template>
 
-<xsl:template name="html.js">
-  <xsl:param name="node" select="."/>
-  <xsl:call-template name="html.js.jquery">
-    <xsl:with-param name="node" select="$node"/>
-  </xsl:call-template>
-  <xsl:call-template name="html.js.custom">
-    <xsl:with-param name="node" select="$node"/>
-  </xsl:call-template>
+<xsl:template name="html.js.script">
   <script type="text/javascript" src="{$html.js.root}yelp.js"/>
 </xsl:template>
 
