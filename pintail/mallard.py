@@ -49,8 +49,9 @@ class MallardPage(pintail.site.Page,
         if lang in self._langtrees:
             return self._langtrees[lang]
         if self.directory.translation_provider.translate_page(self, lang):
-            self._langtrees[lang] = etree.parse(self.get_stage_path(lang))
-            return self._langtrees[lang]
+            return etree.parse(self.get_stage_path(lang))
+            #self._langtrees[lang] = etree.parse(self.get_stage_path(lang))
+            #return self._langtrees[lang]
         else:
             self._notlangs.add(lang)
             return self._tree
@@ -71,16 +72,8 @@ class MallardPage(pintail.site.Page,
         fd.write('<xsl:stylesheet' +
                  ' xmlns:xsl="http://www.w3.org/1999/XSL/Transform"' +
                  ' version="1.0">\n' +
-                 '<xsl:import href="pintail-html-mallard.xsl"/>\n')
-        html_extension = site.config.get('html_extension') or '.html'
-        fd.write('<xsl:param name="html.extension" select="' +
-                 "'" + html_extension + "'" + '"/>\n')
-        link_extension = site.config.get('link_extension')
-        if link_extension is not None:
-            fd.write('<xsl:param name="mal.link.extension" select="' +
-                     "'" + link_extension + "'" + '"/>\n')
-            fd.write('<xsl:param name="pintail.extension.link" select="' +
-                     "'" + link_extension + "'" + '"/>\n')
+                 '<xsl:import href="pintail-html-mallard.xsl"/>\n' +
+                 '<xsl:param name="mal.link.extension" select="$pintail.extension.link"/>\n')
         for xsl in site.get_custom_xsl():
             fd.write('<xsl:include href="%s"/>\n' % xsl)
         fd.write('</xsl:stylesheet>')
@@ -173,7 +166,7 @@ class MallardPage(pintail.site.Page,
         pintail.site.Site._makedirs(self.directory.get_stage_path())
         subprocess.call(['xmllint', '--xinclude',
                          '-o', self.get_stage_path(),
-                         self.source_path])
+                         self.get_source_path()])
 
     def get_cache_data(self, lang=None):
         def _get_node_cache(node):
@@ -217,19 +210,22 @@ class MallardPage(pintail.site.Page,
         page.set(CACHE_NS + 'href', self.get_stage_path(lang))
         return page
 
-    def build_html(self):
-        self.site.log('HTML', self.site_id)
+    def build_html(self, lang=None):
+        if lang is None:
+            self.site.log('HTML', self.site_id)
+        else:
+            self.site.log('HTML', lang + ' ' + self.site_id)
         cmd = ['xsltproc',
-               '--stringparam', 'mal.cache.file', self.site.get_cache_path(),
+               '--stringparam', 'mal.cache.file', self.site.get_cache_path(lang),
                '--stringparam', 'pintail.site.dir', self.directory.path,
                '--stringparam', 'pintail.site.root',
                self.site.config.get('site_root') or '/',
                '--stringparam', 'pintail.source.file', self.source_file]
-        cmd.extend(pintail.site.XslProvider.get_xsltproc_args('html', self))
+        cmd.extend(pintail.site.XslProvider.get_xsltproc_args('html', self, lang=lang))
         cmd.extend([
-            '-o', self.target_path,
+            '-o', self.get_target_path(lang),
             os.path.join(self.site.tools_path, 'pintail-html-mallard-local.xsl'),
-            self.get_stage_path()])
+            self.get_stage_path(lang)])
         subprocess.call(cmd)
 
 

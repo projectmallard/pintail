@@ -36,5 +36,8 @@ class TranslationProvider(pintail.site.Extendable):
     def get_directory_langs(self, directory):
         return []
 
-    def translate_page(self, page):
+    def translate_page(self, page, lang):
+        return False
+
+    def translate_media(self, directory, mediafile, lang):
         return False

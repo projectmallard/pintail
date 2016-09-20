@@ -159,16 +159,8 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
         fd.write('<xsl:stylesheet' +
                  ' xmlns:xsl="http://www.w3.org/1999/XSL/Transform"' +
                  ' version="1.0">\n' +
-                 '<xsl:import href="pintail-html-docbook.xsl"/>\n')
-        html_extension = site.config.get('html_extension') or '.html'
-        fd.write('<xsl:param name="html.extension" select="' +
-                 "'" + html_extension + "'" + '"/>')
-        link_extension = site.config.get('link_extension')
-        if link_extension is not None:
-            fd.write('<xsl:param name="db.chunk.extension" select="' +
-                     "'" + link_extension + "'" + '"/>')
-            fd.write('<xsl:param name="pintail.extension.link" select="' +
-                     "'" + link_extension + "'" + '"/>\n')
+                 '<xsl:import href="pintail-html-docbook.xsl"/>\n' +
+                 '<xsl:param name="db.chunk.extension" select="$pintail.extension.link"/>\n')
         for xsl in site.get_custom_xsl():
             fd.write('<xsl:include href="%s"/>\n' % xsl)
         fd.write('</xsl:stylesheet>')
@@ -264,7 +256,7 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
         pintail.site.Site._makedirs(self.directory.get_stage_path())
         subprocess.call(['xmllint', '--xinclude', '--noent',
                          '-o', self.get_stage_path(),
-                         self.source_path])
+                         self.get_source_path()])
 
     def get_cache_data(self, lang=None):
         ret = None
@@ -300,20 +292,23 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
             pass
         return ret
 
-    def build_html(self):
-        self.site.log('HTML', self.site_id)
+    def build_html(self, lang=None):
+        if lang is None:
+            self.site.log('HTML', self.site_id)
+        else:
+            self.site.log('HTML', lang + ' ' + self.site_id)
         cmd = ['xsltproc',
                '--xinclude',
-               '--stringparam', 'mal.cache.file', self.site.get_cache_path(),
+               '--stringparam', 'mal.cache.file', self.site.get_cache_path(lang),
                '--stringparam', 'pintail.format', 'docbook',
                '--stringparam', 'pintail.site.dir', self.directory.path,
                '--stringparam', 'pintail.site.root',
                self.site.config.get('site_root') or '/']
-        cmd.extend(pintail.site.XslProvider.get_xsltproc_args('html', self))
+        cmd.extend(pintail.site.XslProvider.get_xsltproc_args('html', self, lang=lang))
         cmd.extend([
-            '-o', self.target_path,
+            '-o', self.get_target_path(lang),
             os.path.join(self.site.tools_path, 'pintail-html-docbook-local.xsl'),
-            self.get_stage_path()])
+            self.get_stage_path(lang)])
         subprocess.call(cmd)
 
     def get_media(self):

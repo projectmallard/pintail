@@ -74,8 +74,16 @@ class XslProvider(Extendable):
         return []
 
     @classmethod
-    def get_xsltproc_args(cls, output, obj):
+    def get_xsltproc_args(cls, output, obj, lang=None):
         ret = []
+        if output == 'html' and hasattr(obj, 'site'):
+            html_extension = obj.site.config.get('html_extension') or '.html'
+            if lang is None:
+                ret.extend(['--stringparam', 'html.extension', '.html'])
+            else:
+                ret.extend(['--stringparam', 'html.extension', '.html.' + lang])
+            link_extension = obj.site.config.get('link_extension') or html_extension
+            ret.extend(['--stringparam', 'pintail.extension.link', link_extension])
         for c in XslProvider.iter_subclasses('get_xsl_params'):
             for pair in c.get_xsl_params(output, obj):
                 ret.extend(['--stringparam', pair[0], pair[1]])
@@ -111,9 +119,8 @@ class Page(Extendable):
     def source_file(self):
         return self._source_file
 
-    @property
-    def source_path(self):
-        return os.path.join(self.directory.source_path, self.source_file)
+    def get_source_path(self):
+        return os.path.join(self.directory.get_source_path(), self.source_file)
 
     @property
     def stage_file(self):
@@ -126,9 +133,8 @@ class Page(Extendable):
     def target_file(self):
         return self.page_id + self.target_extension
 
-    @property
-    def target_path(self):
-        return os.path.join(self.directory.target_path, self.target_file)
+    def get_target_path(self, lang=None):
+        return self.site.get_page_target_path(self, lang)
 
     @property
     def target_extension(self):
@@ -156,7 +162,7 @@ class Page(Extendable):
     def get_content(self, hint=None):
         return ''
 
-    def build_html(self):
+    def build_html(self, lang=None):
         return
 
     def get_search_domains(self):
@@ -204,27 +210,25 @@ class Directory(Extendable):
     def translation_provider(self):
         return self.site.translation_provider
 
-    @property
-    def source_path(self):
+    def get_source_path(self):
         if self.parent is not None:
-            return os.path.join(self.parent.source_path, self.path.split('/')[-2])
+            return os.path.join(self.parent.get_source_path(), self.path.split('/')[-2])
         else:
             return os.path.join(self.site.topdir, self.path[1:])
 
     def get_stage_path(self, lang=None):
         return os.path.join(self.site.get_stage_path(lang), self.path[1:])
 
-    @property
-    def target_path(self):
-        return os.path.join(self.site.target_path, self.path[1:])
+    def get_target_path(self, lang=None):
+        return self.site.get_directory_target_path(self, lang)
 
     @classmethod
     def is_special_path(cls, site, path):
         return False
 
     def read_directories(self):
-        for name in os.listdir(self.source_path):
-            if os.path.isdir(os.path.join(self.source_path, name)):
+        for name in os.listdir(self.get_source_path()):
+            if os.path.isdir(os.path.join(self.get_source_path(), name)):
                 subpath = self.path + name + '/'
                 if self.site.get_ignore_directory(subpath):
                     continue
@@ -247,8 +251,8 @@ class Directory(Extendable):
                                                  page.page_id)
                 by_page_id[page.page_id] = page
                 self.pages.append(page)
-        for name in os.listdir(self.source_path):
-            if os.path.isfile(os.path.join(self.source_path, name)):
+        for name in os.listdir(self.get_source_path()):
+            if os.path.isfile(os.path.join(self.get_source_path(), name)):
                 for cls in Page.iter_subclasses('get_pages'):
                     for page in cls.get_pages(self, name):
                         if page.page_id in by_page_id:
@@ -305,37 +309,61 @@ class Directory(Extendable):
         self._search_domains = domains
         return self._search_domains
 
+    def _maketargetdirs(self):
+        Site._makedirs(self.get_target_path())
+        if self.translation_provider is not None:
+            for lc in self.translation_provider.get_directory_langs(self):
+                Site._makedirs(self.get_target_path(lc))
+
     def build_html(self):
         for subdir in self.directories:
             subdir.build_html()
         if not self.site.get_dir_filter(self):
             return
-        Site._makedirs(self.target_path)
+        self._maketargetdirs()
         for page in self.pages:
             page.build_html()
+            if self.translation_provider is not None:
+                for lc in self.translation_provider.get_directory_langs(self):
+                    page.build_html(lc)
 
     def build_media(self):
         for subdir in self.directories:
             subdir.build_media()
         if not self.site.get_dir_filter(self):
             return
-        Site._makedirs(self.target_path)
+        self._maketargetdirs()
         media = set()
         for page in self.pages:
             media.update(page.get_media())
         for fname in media:
-            if fname.startswith('/'):
-                source = os.path.join(self.site.topdir, fname[1:])
-                target = os.path.join(self.site.target_path, fname[1:])
-            else:
-                source = os.path.join(self.source_path, fname)
-                target = os.path.join(self.target_path, fname)
-            self.site.log('MEDIA', self.path + fname)
-            Site._makedirs(os.path.dirname(target))
-            try:
-                shutil.copyfile(source, target)
-            except:
-                self.site.logger.warn('Could not copy file %s' % fname)
+            langs = [None]
+            if self.translation_provider is not None:
+                langs += self.translation_provider.get_directory_langs(self)
+            for lc in langs:
+                if lc is not None:
+                    self.site.log('HEY', lc + ' ' + self.path + fname)
+                if lc is not None:
+                    tr = self.translation_provider.translate_media(self, fname, lc)
+                    if not tr:
+                        continue
+                    if fname.startswith('/'):
+                        # These have to be managed with extra_files for now
+                        continue
+                    source = os.path.join(self.get_stage_path(lc), fname)
+                    self.site.log('MEDIA', lc + ' ' + self.path + fname)
+                else:
+                    if fname.startswith('/'):
+                        source = os.path.join(self.site.topdir, fname[1:])
+                    else:
+                        source = os.path.join(self.get_source_path(), fname)
+                    self.site.log('MEDIA', self.path + fname)
+                target = self.site.get_media_target_path(self, fname, lc)
+                Site._makedirs(os.path.dirname(target))
+                try:
+                    shutil.copyfile(source, target)
+                except:
+                    self.site.logger.warn('Could not copy file %s' % fname)
 
     def build_files(self):
         for subdir in self.directories:
@@ -349,11 +377,11 @@ class Directory(Extendable):
                 # This won't do what it should if the path has anything
                 # glob-like in it. Would be nice if glob() could take
                 # a base path that isn't glob-interpreted.
-                files = glob.glob(os.path.join(self.source_path, glb))
+                files = glob.glob(os.path.join(self.get_source_path(), glb))
                 for fname in files:
                     self.site.log('FILE', self.path + os.path.basename(fname))
                     shutil.copyfile(fname,
-                                    os.path.join(self.target_path,
+                                    os.path.join(self.get_target_path(),
                                                  os.path.basename(fname)))
 
     def build_feeds(self):
@@ -516,6 +544,26 @@ class Site:
             return os.path.join(self.tools_path, 'pintail-' + lang + '.cache')
         else:
             return os.path.join(self.tools_path, 'pintail.cache')
+
+    def get_directory_target_path(self, directory, lang=None):
+        return os.path.join(self.target_path, directory.path[1:])
+
+    def get_page_target_path(self, page, lang=None):
+        dirpath = self.get_directory_target_path(page.directory)
+        if lang is None:
+            return os.path.join(dirpath, page.target_file)
+        else:
+            return os.path.join(dirpath, page.target_file + '.' + lang)
+
+    def get_media_target_path(self, directory, mediafile, lang=None):
+        if lang is not None:
+            langext = '.' + lang
+        else:
+            langext = ''
+        if mediafile.startswith('/'):
+            return os.path.join(self.target_path, mediafile[1:] + langext)
+        else:
+            return os.path.join(directory.get_target_path(), mediafile + langext)
 
     def read_directories(self):
         if self.root is not None:

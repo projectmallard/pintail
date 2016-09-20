@@ -34,7 +34,7 @@ class DucktypePage(pintail.mallard.MallardPage):
         pintail.site.Site._makedirs(self.directory.get_stage_path())
         subprocess.call(['ducktype',
                          '-o', self.get_stage_path(),
-                         self.source_path])
+                         self.get_source_path()])
 
     @classmethod
     def get_pages(cls, directory, filename):

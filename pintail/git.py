@@ -45,8 +45,7 @@ class GitDirectory(pintail.site.Directory, pintail.site.XslProvider):
 
         super().__init__(site, path, parent=parent)
 
-    @property
-    def source_path(self):
+    def get_source_path(self):
         return os.path.join(self.absrepodir,
                             self.site.config.get('git_directory', self.path) or '')
 
