@@ -243,46 +243,49 @@ class MallardPage(pintail.site.Page,
         _accumulate_refs(self._tree.getroot())
         return refs
 
-    def get_title(self, hint=None):
+    def get_title(self, hint=None, lang=None):
+        tree = self._get_tree(lang)
         res = []
         if hint == 'search':
-            res = self._tree.xpath('/mal:page/mal:info/mal:title[@type="search"]',
-                                   namespaces=NS_MAP)
+            res = tree.xpath('/mal:page/mal:info/mal:title[@type="search"]',
+                             namespaces=NS_MAP)
             if len(res) == 0:
-                res = self._tree.xpath('/mal:page/mal:info/mal:title[@type="text"][@role="search"]',
-                                       namespaces=NS_MAP)
+                res = tree.xpath('/mal:page/mal:info/mal:title[@type="text"][@role="search"]',
+                                 namespaces=NS_MAP)
         if len(res) == 0:
-            res = self._tree.xpath('/mal:page/mal:info/mal:title[@type="text"][not(@role)]',
-                                   namespaces=NS_MAP)
+            res = tree.xpath('/mal:page/mal:info/mal:title[@type="text"][not(@role)]',
+                             namespaces=NS_MAP)
         if len(res) == 0:
-            res = self._tree.xpath('/mal:page/mal:title', namespaces=NS_MAP)
+            res = tree.xpath('/mal:page/mal:title', namespaces=NS_MAP)
         if len(res) == 0:
             return ''
         else:
             return res[-1].xpath('string(.)')
 
-    def get_desc(self, hint=None):
+    def get_desc(self, hint=None, lang=None):
+        tree = self._get_tree(lang)
         res = []
         if hint == 'search':
-            res = self._tree.xpath('/mal:page/mal:info/mal:desc[@type="search"]',
-                                   namespaces=NS_MAP)
+            res = tree.xpath('/mal:page/mal:info/mal:desc[@type="search"]',
+                             namespaces=NS_MAP)
             if len(res) == 0:
-                res = self._tree.xpath('/mal:page/mal:info/mal:desc[@type="text"][@role="search"]',
-                                       namespaces=NS_MAP)
+                res = tree.xpath('/mal:page/mal:info/mal:desc[@type="text"][@role="search"]',
+                                 namespaces=NS_MAP)
         if len(res) == 0:
-            res = self._tree.xpath('/mal:page/mal:info/mal:desc[@type="text"][not(@role)]',
-                                   namespaces=NS_MAP)
+            res = tree.xpath('/mal:page/mal:info/mal:desc[@type="text"][not(@role)]',
+                             namespaces=NS_MAP)
         if len(res) == 0:
-            res = self._tree.xpath('/mal:page/mal:info/mal:desc[not(@type)]', namespaces=NS_MAP)
+            res = tree.xpath('/mal:page/mal:info/mal:desc[not(@type)]', namespaces=NS_MAP)
         if len(res) == 0:
             return ''
         else:
             return res[-1].xpath('string(.)')
 
-    def get_content(self, hint=None):
+    def get_content(self, hint=None, lang=None):
         # FIXME: could be good to have smarter block/inline handling, conditional
         # processing, correct block fallback. Probably should just have a mal2text
         # in yelp-xsl.
+        tree = self._get_tree(lang)
         def _accumulate_text(node):
             ret = ''
             for child in node:
@@ -294,7 +297,7 @@ class MallardPage(pintail.site.Page,
                 ret += _accumulate_text(child)
                 ret += child.tail or ''
             return ret
-        return _accumulate_text(self._tree.getroot())
+        return _accumulate_text(tree.getroot())
 
     @classmethod
     def get_pages(cls, directory, filename):

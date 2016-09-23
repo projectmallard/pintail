@@ -150,16 +150,16 @@ class Page(Extendable):
     def get_media(self):
         return []
 
-    def get_title(self, hint=None):
+    def get_title(self, hint=None, lang=None):
         return ''
 
-    def get_desc(self, hint=None):
+    def get_desc(self, hint=None, lang=None):
         return ''
 
-    def get_keywords(self, hint=None):
+    def get_keywords(self, hint=None, lang=None):
         return ''
 
-    def get_content(self, hint=None):
+    def get_content(self, hint=None, lang=None):
         return ''
 
     def build_html(self, lang=None):
@@ -341,8 +341,6 @@ class Directory(Extendable):
             if self.translation_provider is not None:
                 langs += self.translation_provider.get_directory_langs(self)
             for lc in langs:
-                if lc is not None:
-                    self.site.log('HEY', lc + ' ' + self.path + fname)
                 if lc is not None:
                     tr = self.translation_provider.translate_media(self, fname, lc)
                     if not tr:

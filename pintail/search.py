@@ -27,13 +27,17 @@ class SearchProvider(pintail.site.Extendable):
     def index_directory(self, directory):
         if not self.site.get_dir_filter(directory):
             return
+        langs = [None]
+        if self.site.translation_provider is not None:
+            langs += self.site.translation_provider.get_directory_langs(directory)
         for page in directory.pages:
             if not page.searchable:
                 continue
             dms = page.get_search_domains()
             if dms[0] == 'none':
                 continue
-            self.index_page(page)
+            for lc in langs:
+                self.index_page(page, lang=lc)
 
-    def index_page(self, page):
+    def index_page(self, page, lang=None):
         pass

@@ -123,8 +123,8 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
                 break
         return title
 
-    def get_title(self, hint=None):
-        return self.get_title_node(self._tree.getroot(), hint=hint)
+    def get_title(self, hint=None, lang=None):
+        return self.get_title_node(self._get_tree(lang).getroot(), hint=hint)
 
     def get_content_node(self, node, hint=None):
         depth = 0
@@ -147,8 +147,8 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
             return ret
         return _accumulate_text(node)
 
-    def get_content(self, hint=None):
-        return self.get_content_node(self._tree.getroot(), hint=hint)
+    def get_content(self, hint=None, lang=None):
+        return self.get_content_node(self._get_tree(lang).getroot(), hint=hint)
 
     @classmethod
     def build_tools(cls, site):
@@ -341,7 +341,6 @@ class DocBookSubPage(pintail.site.Page):
     def __init__(self, db_page, element):
         pintail.site.Page.__init__(self, db_page.directory, db_page.source_file)
         self._db_page = db_page
-        self._element = element
         self._sect_id = element.get('id') or element.get(XML_NS + 'id')
 
     @property
@@ -352,8 +351,12 @@ class DocBookSubPage(pintail.site.Page):
     def searchable(self):
         return True
 
-    def get_title(self, hint=None):
-        return self._db_page.get_title_node(self._element, hint=hint)
+    def get_title(self, hint=None, lang=None):
+        el = self._db_page._get_tree(lang).getroot().xpath('//*[@id = "%s" or @xml:id = "%s"]' %
+                                                           (self._sect_id, self._sect_id))
+        return self._db_page.get_title_node(el[0], hint=hint)
 
-    def get_content(self, hint=None):
-        return self._db_page.get_content_node(self._element, hint=hint)
+    def get_content(self, hint=None, lang=None):
+        el = self._db_page._get_tree(lang).getroot().xpath('//*[@id = "%s" or @xml:id = "%s"]' %
+                                                           (self._sect_id, self._sect_id))
+        return self._db_page.get_content_node(el[0], hint=hint)

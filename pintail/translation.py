@@ -23,6 +23,9 @@ class TranslationProvider(pintail.site.Extendable):
         self.site = site
         self._langs = None
 
+    def get_source_lang(self):
+        return self.site.config.get('source_lang') or 'en'
+
     def get_site_langs(self):
         if self._langs is not None:
             return self._langs
