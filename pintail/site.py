@@ -547,6 +547,11 @@ class Site:
             return self.translation_provider.get_site_langs()
         return []
 
+    def get_source_lang(self):
+        if self.translation_provider is not None:
+            return self.translation_provider.get_source_lang()
+        return 'en'
+
     def get_stage_path(self, lang=None):
         if lang is not None:
             return os.path.join(self.pindir, 'stage-' + lang)
