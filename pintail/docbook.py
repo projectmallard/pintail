@@ -39,6 +39,9 @@ DOCBOOK_INFOS = [
     'sectioninfo', 'setindexinfo']
 
 class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.CssProvider):
+
+    _html_transform = None
+
     def __init__(self, directory, source_file):
         pintail.site.Page.__init__(self, directory, source_file)
         self.stage_page()
@@ -297,13 +300,28 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
             self.site.log('HTML', self.site_id)
         else:
             self.site.log('HTML', lang + ' ' + self.site_id)
+
+        if DocBookPage._html_transform is None:
+            DocBookPage._html_transform = etree.XSLT(etree.parse(os.path.join(self.site.tools_path,
+                                                                              'pintail-html-docbook-local.xsl')))
+        args = {}
+        args['pintail.format'] = 'docbook'
+        for pair in pintail.site.XslProvider.get_all_xsl_params('html', self, lang=lang):
+            args[pair[0]] = etree.XSLT.strparam(pair[1])
+        tree = self._get_tree(lang)
+        DocBookPage._html_transform(tree, **args)
+
+        return
+        # Leaving in this code to call xsltproc for now. It turns out that using
+        # etree.XSLT is slower on each individual run than calling xsltproc, oddly
+        # enough. But it gets you performance gains over large numbers of documents
+        # by not constantly reparsing the XSLT. This is definitely worthwhile for
+        # Mallard. We may find it's not worthwhile for DocBook when tested against
+        # real-world sites.
+
         cmd = ['xsltproc',
                '--xinclude',
-               '--stringparam', 'mal.cache.file', self.site.get_cache_path(lang),
-               '--stringparam', 'pintail.format', 'docbook',
-               '--stringparam', 'pintail.site.dir', self.directory.path,
-               '--stringparam', 'pintail.site.root',
-               self.site.config.get('site_root') or '/']
+               '--stringparam', 'pintail.format', 'docbook']
         cmd.extend(pintail.site.XslProvider.get_xsltproc_args('html', self, lang=lang))
         cmd.extend([
             '-o', self.get_target_path(lang),

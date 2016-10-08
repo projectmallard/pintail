@@ -56,7 +56,7 @@ class GitDirectory(pintail.site.Directory, pintail.site.XslProvider):
             return True
 
     @classmethod
-    def get_xsl_params(cls, output, obj):
+    def get_xsl_params(cls, output, obj, lang=None):
         if not (output == 'html' and isinstance(obj, pintail.site.Page)):
             return []
         if isinstance(obj.directory, cls):

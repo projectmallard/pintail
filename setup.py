@@ -6,6 +6,13 @@ if sys.version_info[0] != 3:
     sys.stderr.write("pintail requires python 3\n")
     sys.exit(1)
 
+try:
+    import lxml.etree
+    lxml.etree.XSLT
+except:
+    sys.stderr.write("pintail requires lxml.etree.XSLT\n")
+    sys.exit(1)
+
 setup(
     name='pintail',
     version='0.4',

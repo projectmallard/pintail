@@ -70,25 +70,41 @@ class XslProvider(Extendable):
         return []
 
     @classmethod
-    def get_xsl_params(cls, output, obj):
+    def get_xsl_params(cls, output, obj, lang=None):
         return []
 
     @classmethod
-    def get_xsltproc_args(cls, output, obj, lang=None):
+    def get_all_xsl_params(cls, output, obj, lang=None):
         ret = []
         if output == 'html' and hasattr(obj, 'site'):
             html_extension = obj.site.config.get('html_extension') or '.html'
             if lang is None:
-                ret.extend(['--stringparam', 'html.extension', '.html'])
+                ret.append(('html.extension', '.html'))
             else:
-                ret.extend(['--stringparam', 'html.extension', '.html.' + lang])
+                ret.append(('html.extension', '.html.' + lang))
             link_extension = obj.site.config.get('link_extension') or html_extension
-            ret.extend(['--stringparam', 'pintail.extension.link', link_extension])
+            ret.append(('pintail.extension.link', link_extension))
+        if hasattr(obj, 'site'):
+            ret.append(('mal.cache.file', obj.site.get_cache_path(lang)))
+            ret.append(('pintail.site.root', obj.site.config.get('site_root') or '/'))
+        if hasattr(obj, 'directory'):
+            ret.append(('pintail.site.dir', obj.directory.path))
+            if output == 'html':
+                ret.append(('html.output.prefix', obj.directory.get_target_path(lang)))
+        if hasattr(obj, 'source_file'):
+            ret.append(('pintail.source.file', obj.source_file))
         for c in XslProvider.iter_subclasses('get_xsl_params'):
-            for pair in c.get_xsl_params(output, obj):
-                ret.extend(['--stringparam', pair[0], pair[1]])
+            ret.extend(c.get_xsl_params(output, obj, lang))
         return ret
 
+    @classmethod
+    def get_xsltproc_args(cls, output, obj, lang=None):
+        # Drop this function in the future if we decide to keep DocBook using
+        # lxml.etree.XSLT instead of calling xsltproc.
+        ret = []
+        for pair in cls.get_all_xsl_params(output, obj, lang=lang):
+            ret.extend(['--stringparam', pair[0], pair[1]])
+        return ret
 
 
 class Page(Extendable):

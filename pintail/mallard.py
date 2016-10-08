@@ -34,6 +34,9 @@ NS_MAP = {
 class MallardPage(pintail.site.Page,
                   pintail.site.ToolsProvider,
                   pintail.site.CssProvider):
+
+    _html_transform = None
+
     def __init__(self, directory, source_file):
         pintail.site.Page.__init__(self, directory, source_file)
         self.stage_page()
@@ -215,18 +218,15 @@ class MallardPage(pintail.site.Page,
             self.site.log('HTML', self.site_id)
         else:
             self.site.log('HTML', lang + ' ' + self.site_id)
-        cmd = ['xsltproc',
-               '--stringparam', 'mal.cache.file', self.site.get_cache_path(lang),
-               '--stringparam', 'pintail.site.dir', self.directory.path,
-               '--stringparam', 'pintail.site.root',
-               self.site.config.get('site_root') or '/',
-               '--stringparam', 'pintail.source.file', self.source_file]
-        cmd.extend(pintail.site.XslProvider.get_xsltproc_args('html', self, lang=lang))
-        cmd.extend([
-            '-o', self.get_target_path(lang),
-            os.path.join(self.site.tools_path, 'pintail-html-mallard-local.xsl'),
-            self.get_stage_path(lang)])
-        subprocess.call(cmd)
+        if MallardPage._html_transform is None:
+            MallardPage._html_transform = etree.XSLT(etree.parse(os.path.join(self.site.tools_path,
+                                                                              'pintail-html-mallard-local.xsl')))
+        args = {}
+        args['pintail.format'] = 'mallard'
+        for pair in pintail.site.XslProvider.get_all_xsl_params('html', self, lang=lang):
+            args[pair[0]] = etree.XSLT.strparam(pair[1])
+        MallardPage._html_transform(self._get_tree(lang), **args)
+        return
 
 
     def get_media(self):
