@@ -305,7 +305,7 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
             DocBookPage._html_transform = etree.XSLT(etree.parse(os.path.join(self.site.tools_path,
                                                                               'pintail-html-docbook-local.xsl')))
         args = {}
-        args['pintail.format'] = 'docbook'
+        args['pintail.format'] = etree.XSLT.strparam('docbook')
         for pair in pintail.site.XslProvider.get_all_xsl_params('html', self, lang=lang):
             args[pair[0]] = etree.XSLT.strparam(pair[1])
         tree = self._get_tree(lang)

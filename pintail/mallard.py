@@ -222,11 +222,10 @@ class MallardPage(pintail.site.Page,
             MallardPage._html_transform = etree.XSLT(etree.parse(os.path.join(self.site.tools_path,
                                                                               'pintail-html-mallard-local.xsl')))
         args = {}
-        args['pintail.format'] = 'mallard'
+        args['pintail.format'] = etree.XSLT.strparam('mallard')
         for pair in pintail.site.XslProvider.get_all_xsl_params('html', self, lang=lang):
             args[pair[0]] = etree.XSLT.strparam(pair[1])
         MallardPage._html_transform(self._get_tree(lang), **args)
-        return
 
 
     def get_media(self):
