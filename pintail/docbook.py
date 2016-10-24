@@ -16,6 +16,7 @@
 
 import os
 import subprocess
+import shutil
 from lxml import etree
 
 import pintail.site
@@ -43,6 +44,10 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
     _html_transform = None
 
     def __init__(self, directory, source_file):
+        self.pbdoctype = None
+        self.pbbrand = None
+        self.pblang = None
+
         pintail.site.Page.__init__(self, directory, source_file)
         self.stage_page()
         self._tree = etree.parse(self.get_stage_path())
@@ -255,11 +260,121 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
                     fd.write(open(custom_css).read())
                     fd.close()
 
+    def _rewrite_publican_xml_file(self, source, target, entfile):
+        p = subprocess.Popen(['xmllint', '--dropdtd', source],
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        lines = p.communicate()[0].decode('utf-8').split('\n')
+        decl = None
+        if lines[0].startswith('<?xml'):
+            decl = lines.pop(0)
+        el = None
+        for line in lines:
+            if '<' in line:
+                el = line[line.index('<')+1:]
+                if el[0] != '!':
+                    if ' ' in el:
+                        el = el[:el.index(' ')]
+                    elif '>' in el:
+                        el = el[:el.index('>')]
+                    break
+        doctype = '<!DOCTYPE %s PUBLIC ' % el
+        if self.pbdoctype.startswith('4.'):
+            doctype += '"-//OASIS//DTD DocBook XML V%s//EN" ' % self.pbdoctype
+            doctype += '"http://www.oasis-open.org/docbook/xml/%s/docbookx.dtd" [\n' % self.pbdoctype
+        elif self.pbdoctype.startswith('5.'):
+            FIXME
+        else:
+            FIXME
+        if entfile is not None:
+            doctype += '<!ENTITY %% BOOK_ENTITIES SYSTEM "%s">\n' % entfile
+            doctype += '%BOOK_ENTITIES;\n'
+        doctype += ']>\n'
+        fd = open(target, 'w')
+        if decl is not None:
+            fd.write(decl + '\n')
+        fd.write(doctype)
+        for line in lines:
+            fd.write(line + '\n')
+        fd.close()
+
+    def _stage_page_publican(self):
+        # Publican does some weird things to DocBook, including rewriting the DOCTYPE
+        # in a way that lets you write non-well-formed XML that can't be read by any
+        # other tool. Pintail can pretend to be Publican.
+        pbdir = os.path.join(self.directory.get_stage_path(), '__publican__')
+        pintail.site.Site._makedirs(pbdir)
+
+        # Look for the publican.cfg file and extract some values from it.
+        cfgdir = self.directory.get_source_path()
+        cfg = os.path.join(cfgdir, 'publican.cfg')
+        while not os.path.exists(cfg):
+            if os.path.dirname(cfgdir) == cfgdir:
+                break
+            cfgdir = os.path.dirname(cfgdir)
+            cfg = os.path.join(cfgdir, 'publican.cfg')
+        if os.path.exists(cfg):
+            for line in open(cfg):
+                if line.startswith('brand:'):
+                    self.pbbrand = line[line.index(':')+1:].strip()
+                if line.startswith('xml_lang:'):
+                    self.pblang = line[line.index(':')+1:].strip()
+
+        # Rewrite the DOCTYPE of all .xml files, using a .ent file with the
+        # same basename if available. This is the craziness Publican does.
+        xmlfiles = []
+        entfile = None
+        dpath = self.directory.get_source_path()
+        for xml in os.listdir(dpath):
+            if not os.path.isfile(os.path.join(dpath, xml)):
+                continue
+            if xml.endswith('.xml'):
+                xmlfiles.append(xml)
+            elif xml == os.path.splitext(self.source_file)[0] + '.ent':
+                entfile = xml
+                shutil.copyfile(os.path.join(dpath, entfile), os.path.join(pbdir, entfile))
+        for xml in xmlfiles:
+            self._rewrite_publican_xml_file(os.path.join(dpath, xml),
+                                            os.path.join(pbdir, xml),
+                                            entfile)
+
+        # Publican also ships "common content", some of which is required
+        # for parsing. But even the common content has to be rewritten to
+        # reference the .ent file in your repo. We can only do this if we
+        # found a brand and language in publican.cfg.
+        if self.pbbrand is not None and self.pblang is not None:
+            ccdir = os.path.join(pbdir, 'Common_Content')
+            pintail.site.Site._makedirs(ccdir)
+            branddir = os.path.join('/usr/share/publican/Common_Content/', self.pbbrand, self.pblang)
+            commondir = os.path.join('/usr/share/publican/Common_Content/common/', self.pblang)
+            brandfiles = [os.path.join(branddir, xml) for xml in os.listdir(branddir)]
+            commonfiles = [os.path.join(commondir, xml) for xml in os.listdir(commondir)]
+            donefiles = set()
+            for filename in brandfiles + commonfiles:
+                bname = os.path.basename(filename)
+                if bname in donefiles:
+                    continue
+                if not os.path.isfile(filename):
+                    continue
+                if filename.endswith('.xml'):
+                    donefiles.add(bname)
+                    self._rewrite_publican_xml_file(filename,
+                                                    os.path.join(ccdir, bname),
+                                                    '../' + entfile)
+
+        # Finally, make a baked XML file in the location the rest of Pintail expects.
+        subprocess.call(['xmllint', '--xinclude', '--noent', '--loaddtd',
+                         '-o', self.get_stage_path(),
+                         os.path.join(pbdir, self.source_file)])
+
     def stage_page(self):
         pintail.site.Site._makedirs(self.directory.get_stage_path())
-        subprocess.call(['xmllint', '--xinclude', '--noent',
-                         '-o', self.get_stage_path(),
-                         self.get_source_path()])
+        self.pbdoctype = self.site.config.get('publican_doctype', self.directory.path)
+        if self.pbdoctype is not None:
+            self._stage_page_publican()
+        else:
+            subprocess.call(['xmllint', '--xinclude', '--noent',
+                             '-o', self.get_stage_path(),
+                             self.get_source_path()])
 
     def get_cache_data(self, lang=None):
         ret = None
@@ -345,6 +460,31 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
             for child in node:
                 _accumulate_refs(child)
         _accumulate_refs(self._tree.getroot())
+
+        # If files don't exist, but Publican provides them, stage them.
+        if self.pbbrand is not None and self.pblang is not None:
+            for ref in refs:
+                if os.path.exists(os.path.join(self.directory.get_source_path(), ref)):
+                    continue
+                stagepath = os.path.join(self.directory.get_stage_path(), ref)
+                if os.path.exists(stagepath):
+                    continue
+                if ref.startswith('Common_Content/'):
+                    rref = ref[15:]
+                else:
+                    continue
+                tryref = os.path.join('/usr/share/publican/Common_Content/', self.pbbrand, self.pblang, rref)
+                if os.path.exists(tryref):
+                    self.site.log('STAGE', self.directory.path + ref)
+                    pintail.site.Site._makedirs(os.path.dirname(stagepath))
+                    shutil.copyfile(tryref, stagepath)
+                    continue
+                tryref = os.path.join('/usr/share/publican/Common_Content/common/', self.pblang, rref)
+                if os.path.exists(tryref):
+                    self.site.log('STAGE', self.directory.path + ref)
+                    pintail.site.Site._makedirs(os.path.dirname(stagepath))
+                    shutil.copyfile(tryref, stagepath)
+
         return refs
 
     @classmethod

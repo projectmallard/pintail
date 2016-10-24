@@ -370,7 +370,12 @@ class Directory(Extendable):
                     if fname.startswith('/'):
                         source = os.path.join(self.site.topdir, fname[1:])
                     else:
-                        source = os.path.join(self.get_source_path(), fname)
+                        # The file might be generated, in which case it's in the
+                        # stage directory. But we don't stage static media files,
+                        # so those are just in the source directory.
+                        source = os.path.join(self.get_stage_path(), fname)
+                        if not os.path.exists(source):
+                            source = os.path.join(self.get_source_path(), fname)
                     self.site.log('MEDIA', self.path + fname)
                 target = self.site.get_media_target_path(self, fname, lc)
                 Site._makedirs(os.path.dirname(target))
