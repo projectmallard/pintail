@@ -451,7 +451,7 @@ class Directory(Extendable):
                 root = self.site.config.get('site_root') or '/'
 
             subprocess.call(['xsltproc',
-                             '-o', os.path.join(self.target_path, atomfile),
+                             '-o', os.path.join(self.get_target_path(), atomfile),
                              '--stringparam', 'pintail.site.dir', self.path,
                              '--stringparam', 'pintail.site.root', root,
                              '--stringparam', 'feed.exclude_styles',
