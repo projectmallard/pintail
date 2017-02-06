@@ -839,9 +839,10 @@ class Site:
         self.root.build_feeds()
 
     def build_search(self):
-        self.read_directories()
-        if self.search_provider is not None:
-            self.search_provider.index_site()
+        if self.config._index:
+            self.read_directories()
+            if self.search_provider is not None:
+                self.search_provider.index_site()
 
     def build_icons(self):
         xslpath = subprocess.check_output(['pkg-config',
@@ -924,6 +925,7 @@ class Config:
         self._config.read(filename)
         self._local = False
         self._update = True
+        self._index = True
 
     def get(self, key, path=None):
         if path is None:
@@ -941,6 +943,9 @@ class Config:
 
     def set_update(self, update):
         self._update = update
+
+    def set_index(self, index):
+        self._index = index
 
     def get_directories(self):
         return [d for d in self._config.sections()
