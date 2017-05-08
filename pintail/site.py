@@ -645,7 +645,6 @@ class Site:
         if len(self._filter_dirs) == 0:
             self.build_css()
             self.build_js()
-            self.build_icons()
 
     def build_cache(self):
         self.read_directories()
@@ -848,55 +847,6 @@ class Site:
             self.read_directories()
             if self.search_provider is not None:
                 self.search_provider.index_site()
-
-    def build_icons(self):
-        xslpath = subprocess.check_output(['pkg-config',
-                                           '--variable', 'xsltdir',
-                                           'yelp-xsl'],
-                                          universal_newlines=True)
-        xslpath = xslpath.strip()
-        if xslpath == '':
-            print('FIXME: yelp-xsl not found')
-
-        xsl = (
-            '<xsl:stylesheet'
-            ' xmlns:xsl="http://www.w3.org/1999/XSL/Transform"'
-            ' xmlns:mal="http://projectmallard.org/1.0/"'
-            ' version="1.0">\n'
-            '<xsl:import href="' + xslpath + '/common/icons.xsl"/>\n'
-            )
-        for x in self.get_custom_xsl():
-            xsl += ('<xsl:include href="%s"/>\n' % x)
-        xsl += (
-            '<xsl:output method="text"/>\n'
-            '<xsl:template match="/">\n'
-            ' <xsl:value-of select="$icons.size.note"/>\n'
-            '</xsl:template>\n'
-            '</xsl:stylesheet>\n'
-            )
-
-        cmd = subprocess.Popen(['xsltproc', '-', self.get_cache_path()],
-                               stdin=subprocess.PIPE,
-                               stdout=subprocess.PIPE)
-        cmd.stdin.write(xsl.encode())
-        cmd.stdin.close()
-        iconsize = cmd.stdout.readline().decode()
-
-        iconpath = subprocess.check_output(['pkg-config',
-                                            '--variable', 'icondir',
-                                            'yelp-xsl'],
-                                           universal_newlines=True)
-        iconpath = iconpath.strip()
-        if iconpath == '':
-            print('FIXME: yelp-xsl not found')
-
-        iconpath = os.path.join(iconpath, 'hicolor',
-                                iconsize + 'x' + iconsize,
-                                'status')
-        for f in os.listdir(iconpath):
-            self.log('ICON', '/' + f)
-            shutil.copyfile(os.path.join(iconpath, f),
-                            os.path.join(self.target_path, f))
 
     def get_ignore_directory(self, directory):
         if directory == '/__pintail__/':
