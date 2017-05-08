@@ -204,6 +204,7 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
             '<xsl:import href="' + xslpath + '/common/html.xsl"/>\n',
             '<xsl:import href="' + xslpath + '/docbook/html/db2html-css.xsl"/>\n'
             ])
+        fd.write('<xsl:import href="%s"/>\n' % 'pintail-html.xsl')
         for xsl in site.get_custom_xsl():
             fd.write('<xsl:include href="%s"/>\n' % xsl)
         fd.writelines([

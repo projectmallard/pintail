@@ -17,6 +17,7 @@
 import codecs
 import configparser
 import copy
+import datetime
 import glob
 import importlib
 import logging
@@ -93,6 +94,9 @@ class XslProvider(Extendable):
                 ret.append(('html.output.prefix', obj.directory.get_target_path(lang)))
         if hasattr(obj, 'source_file'):
             ret.append(('pintail.source.file', obj.source_file))
+        now = datetime.datetime.now()
+        ret.append(('pintail.date', now.strftime('%Y-%m-%d')))
+        ret.append(('pintail.time', now.strftime('%T')))
         for c in XslProvider.iter_subclasses('get_xsl_params'):
             ret.extend(c.get_xsl_params(output, obj, lang))
         return ret
@@ -754,6 +758,7 @@ class Site:
             ' version="1.0">\n'
             '<xsl:import href="', xslpath, '/mallard/html/mal2xhtml.xsl"/>\n'
             ])
+        fd.write('<xsl:import href="%s"/>\n' % 'pintail-html.xsl')
         for xsl in self.get_custom_xsl():
             fd.write('<xsl:include href="%s"/>\n' % xsl)
         fd.writelines([

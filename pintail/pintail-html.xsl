@@ -33,6 +33,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 <xsl:param name="pintail.extension.link" select="$html.extension"/>
 
+<xsl:param name="pintail.date"/>
+<xsl:param name="pintail.time"/>
+
 <!-- For backwards compatibility. Use pintail params instead. -->
 <xsl:param name="mal.site.root" select="$pintail.site.root"/>
 <xsl:param name="mal.site.dir" select="$pintail.site.dir"/>
