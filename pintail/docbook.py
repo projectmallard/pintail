@@ -105,8 +105,12 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
         if lang in self._langtrees:
             return self._langtrees[lang]
         if self.directory.translation_provider is not None:
+            spath = self.get_stage_path(lang)
+            if os.path.exists(spath) and not self.site.get_dir_filter(self.directory):
+                self._langtrees[lang] = etree.parse(spath)
+                return self._langtrees[lang]
             if self.directory.translation_provider.translate_page(self, lang):
-                self._langtrees[lang] = etree.parse(self.get_stage_path(lang))
+                self._langtrees[lang] = etree.parse(spath)
                 return self._langtrees[lang]
         self._notlangs.add(lang)
         return self._tree

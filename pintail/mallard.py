@@ -52,8 +52,11 @@ class MallardPage(pintail.site.Page,
         if lang in self._langtrees:
             return self._langtrees[lang]
         if self.directory.translation_provider is not None:
+            spath = self.get_stage_path(lang)
+            if os.path.exists(spath) and not self.site.get_dir_filter(self.directory):
+                return etree.parse(spath)
             if self.directory.translation_provider.translate_page(self, lang):
-                return etree.parse(self.get_stage_path(lang))
+                return etree.parse(spath)
                 #self._langtrees[lang] = etree.parse(self.get_stage_path(lang))
                 #return self._langtrees[lang]
         self._notlangs.add(lang)
