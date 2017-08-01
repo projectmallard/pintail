@@ -593,6 +593,13 @@ class Site:
         else:
             return os.path.join(directory.get_target_path(), mediafile + langext)
 
+    def translate_page(self, page, lang):
+        if self.translation_provider is not None:
+            if not self.get_dir_filter(page.directory):
+                if os.path.exists(page.get_stage_path(lang)):
+                    return True
+            return page.directory.translation_provider.translate_page(page, lang)
+
     def read_directories(self):
         if self.root is not None:
             return
