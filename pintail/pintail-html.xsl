@@ -230,6 +230,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 </xsl:template>
 
 <xsl:template match="mal:links[@type = 'site-subdirs' or @type = 'site:subdirs']">
+  <xsl:variable name="node" select="."/>
   <xsl:variable name="page" select="/mal:page"/>
   <xsl:variable name="links">
     <xsl:for-each select="$mal.cache/mal:page | $mal.cache/pintail:external">
@@ -269,6 +270,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         <xsl:for-each select="$nodes">
           <xsl:sort select="mal:title[@type = 'sort']"/>
           <xsl:call-template name="mal2html.links.ul.li">
+            <xsl:with-param name="node" select="$node"/>
             <xsl:with-param name="xref" select="@xref"/>
             <xsl:with-param name="role" select="concat($role, ' site:subdirs guide')"/>
           </xsl:call-template>
