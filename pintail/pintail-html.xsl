@@ -261,6 +261,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     </xsl:for-each>
   </xsl:variable>
   <xsl:variable name="nodes" select="exsl:node-set($links)/*"/>
+  <xsl:variable name="role" select="@role"/>
   <xsl:if test="count($nodes) != 0">
     <div class="links subdirslinks">
       <xsl:apply-templates mode="mal2html.block.mode" select="mal:title"/>
@@ -269,7 +270,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
           <xsl:sort select="mal:title[@type = 'sort']"/>
           <xsl:call-template name="mal2html.links.ul.li">
             <xsl:with-param name="xref" select="@xref"/>
-            <xsl:with-param name="role" select="'guide'"/>
+            <xsl:with-param name="role" select="concat($role, ' site:subdirs guide')"/>
           </xsl:call-template>
         </xsl:for-each>
       </ul>
