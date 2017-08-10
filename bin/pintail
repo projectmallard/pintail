@@ -103,7 +103,7 @@ if __name__ == '__main__':
         site.target_path = os.path.abspath(args.output)
 
     if args.command == 'build':
-        site.set_filter_dirs(args.dirs)
+        site.set_filter(args.dirs)
         site.build()
     elif args.command == 'css':
         site.build_cache()
@@ -112,7 +112,7 @@ if __name__ == '__main__':
         site.build_cache()
         site.build_js()
     elif args.command == 'files':
-        site.set_filter_dirs(args.dirs)
+        site.set_filter(args.dirs)
         site.build_files()
     elif args.command == 'feeds':
         site.build_cache()

@@ -338,10 +338,12 @@ class Directory(Extendable):
     def build_html(self):
         for subdir in self.directories:
             subdir.build_html()
-        if not self.site.get_dir_filter(self):
+        if not self.site.get_filter(self):
             return
         self._maketargetdirs()
         for page in self.pages:
+            if not self.site.get_filter(page):
+                continue
             page.build_html()
             if self.translation_provider is not None:
                 for lc in self.translation_provider.get_directory_langs(self):
@@ -350,11 +352,13 @@ class Directory(Extendable):
     def build_media(self):
         for subdir in self.directories:
             subdir.build_media()
-        if not self.site.get_dir_filter(self):
+        if not self.site.get_filter(self):
             return
         self._maketargetdirs()
         media = set()
         for page in self.pages:
+            if not self.site.get_filter(page):
+                continue
             media.update(page.get_media())
         for fname in media:
             langs = [None]
@@ -391,7 +395,7 @@ class Directory(Extendable):
     def build_files(self):
         for subdir in self.directories:
             subdir.build_files()
-        if not self.site.get_dir_filter(self):
+        if not self.site.get_filter(self):
             return
         Site._makedirs(self.get_stage_path())
         globs = self.site.config.get('extra_files', self.path)
@@ -410,7 +414,7 @@ class Directory(Extendable):
     def build_feeds(self):
         for subdir in self.directories:
             subdir.build_feeds()
-        if not self.site.get_dir_filter(self):
+        if not self.site.get_filter(self):
             return
         atomfile = self.site.config.get('feed_atom', self.path)
         if atomfile is not None:
@@ -490,7 +494,7 @@ class Site:
         self.logger = logging.getLogger('pintail')
         self.logger.addHandler(logging.StreamHandler())
 
-        self._filter_dirs = []
+        self._filter = []
 
         for plugin in (self.config.get('plugins') or '').split():
             importlib.import_module(plugin)
@@ -523,23 +527,34 @@ class Site:
         fd.write(codecs.decode(sample, 'utf-8'))
         fd.close()
 
-    def set_filter_dirs(self, dirs):
-        self._filter_dirs = []
+    def set_filter(self, dirs):
+        self._filter = []
         if dirs is None:
             return
         for fdir in dirs:
             if not(fdir.startswith('/')):
                 fdir = '/' + fdir
-            if not(fdir.endswith('/')):
-                fdir = fdir + '/'
-            self._filter_dirs.append(fdir)
+            self._filter.append(fdir)
 
-    def get_dir_filter(self, directory):
-        if len(self._filter_dirs) == 0:
+    def get_filter(self, obj):
+        if len(self._filter) == 0:
             return True
-        for fdir in self._filter_dirs:
-            if directory.path.startswith(fdir):
-                return True
+        if isinstance(obj, Directory):
+            for f in self._filter:
+                if f.endswith('/'):
+                    if obj.path.startswith(f):
+                        return True
+                else:
+                    if f.startswith(obj.path):
+                        return True
+        elif isinstance(obj, Page):
+            for f in self._filter:
+                if f.endswith('/'):
+                    if obj.site_id.startswith(f):
+                        return True
+                else:
+                    if obj.site_id == f:
+                        return True
         return False
 
     def get_custom_xsl(self):
@@ -595,7 +610,7 @@ class Site:
 
     def translate_page(self, page, lang):
         if self.translation_provider is not None:
-            if not self.get_dir_filter(page.directory):
+            if not self.get_filter(page):
                 if os.path.exists(page.get_stage_path(lang)):
                     return True
             return page.directory.translation_provider.translate_page(page, lang)
@@ -649,7 +664,7 @@ class Site:
         self.build_files()
         self.build_feeds()
         self.build_search()
-        if len(self._filter_dirs) == 0:
+        if len(self._filter) == 0:
             self.build_css()
             self.build_js()
 
