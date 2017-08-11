@@ -21,6 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 xmlns:mal="http://projectmallard.org/1.0/"
                 xmlns:str="http://exslt.org/strings"
                 xmlns:exsl="http://exslt.org/common"
+                xmlns:site="http://projectmallard.org/site/1.0/"
                 xmlns:pintail="http://pintail.io/"
                 xmlns="http://www.w3.org/1999/xhtml"
                 extension-element-prefixes="exsl"
@@ -39,6 +40,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 <!-- For backwards compatibility. Use pintail params instead. -->
 <xsl:param name="mal.site.root" select="$pintail.site.root"/>
 <xsl:param name="mal.site.dir" select="$pintail.site.dir"/>
+
+<xsl:param name="mal.link.prefix" select="concat($pintail.site.root, $pintail.site.dir)"/>
 
 <xsl:param name="pintail.source.file"/>
 
@@ -205,6 +208,24 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <xsl:value-of select="$pintail.site.dir"/>
   </xsl:if>
   <xsl:value-of select="$linkid"/>
+</xsl:template>
+
+<xsl:template name="mal2html.ui.links.img.src">
+  <xsl:param name="node"/>
+  <xsl:param name="thumb"/>
+  <xsl:attribute name="src">
+    <xsl:value-of select="$pintail.site.root"/>
+    <xsl:choose>
+      <xsl:when test="starts-with($thumb/@src, '/')">
+        <xsl:value-of select="substring($thumb/@src, 2)"/>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:value-of
+            select="substring($thumb/ancestor-or-self::mal:page/@site:dir, 2)"/>
+        <xsl:value-of select="$thumb/@src"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:attribute>
 </xsl:template>
 
 <xsl:template name="html.css">
