@@ -131,47 +131,42 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   </xsl:call-template>
 </xsl:template>
 
-<xsl:template name="mal.link.target">
+<xsl:template name="mal.link.target.extended">
   <xsl:param name="node" select="."/>
   <xsl:param name="xref" select="$node/@xref"/>
   <xsl:param name="href" select="$node/@href"/>
   <xsl:choose>
-    <xsl:when test="string($xref) = ''">
-      <xsl:value-of select="$href"/>
-    </xsl:when>
-    <xsl:when test="starts-with($xref, '#')">
-      <xsl:value-of select="$xref"/>
-    </xsl:when>
-    <xsl:otherwise>
+    <xsl:when test="contains($xref, '/')">
       <xsl:value-of select="$pintail.site.root"/>
       <xsl:if test="not(starts-with($xref, '/'))">
         <xsl:value-of select="substring($pintail.site.dir, 2)"/>
       </xsl:if>
+      <xsl:variable name="pageid">
+        <xsl:choose>
+          <xsl:when test="contains($xref, '#')">
+            <xsl:value-of select="substring-before($xref, '#')"/>
+          </xsl:when>
+          <xsl:otherwise>
+            <xsl:value-of select="$xref"/>
+          </xsl:otherwise>
+        </xsl:choose>
+      </xsl:variable>
       <xsl:choose>
-        <xsl:when test="contains($xref, '#')">
-          <xsl:variable name="pageid" select="substring-before($xref, '#')"/>
-          <xsl:variable name="sectionid" select="substring-after($xref, '#')"/>
-          <xsl:choose>
-            <xsl:when test="starts-with($pageid, '/')">
-              <xsl:value-of select="substring($pageid, 2)"/>
-            </xsl:when>
-            <xsl:otherwise>
-              <xsl:value-of select="$pageid"/>
-            </xsl:otherwise>
-          </xsl:choose>
-          <xsl:value-of select="concat($pintail.extension.link, '#', $sectionid)"/>
+        <xsl:when test="starts-with($pageid, '/')">
+          <xsl:value-of select="substring($pageid, 2)"/>
         </xsl:when>
         <xsl:otherwise>
-          <xsl:choose>
-            <xsl:when test="starts-with($xref, '/')">
-              <xsl:value-of select="concat(substring($xref, 2), $pintail.extension.link)"/>
-            </xsl:when>
-            <xsl:otherwise>
-              <xsl:value-of select="concat($xref, $pintail.extension.link)"/>
-            </xsl:otherwise>
-          </xsl:choose>
+          <xsl:value-of select="$pageid"/>
         </xsl:otherwise>
       </xsl:choose>
+      <xsl:value-of select="$pintail.extension.link"/>
+      <xsl:if test="contains($xref, '#')">
+        <xsl:text>#</xsl:text>
+        <xsl:value-of select="substring-after($xref, '#')"/>
+      </xsl:if>
+    </xsl:when>
+    <xsl:otherwise>
+      <xsl:value-of select="$href"/>
     </xsl:otherwise>
   </xsl:choose>
 </xsl:template>
