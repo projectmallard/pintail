@@ -41,7 +41,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 <xsl:param name="mal.site.root" select="$pintail.site.root"/>
 <xsl:param name="mal.site.dir" select="$pintail.site.dir"/>
 
-<xsl:param name="mal.link.prefix" select="concat($pintail.site.root, $pintail.site.dir)"/>
+<xsl:param name="mal.link.prefix"
+           select="concat($pintail.site.root, substring($pintail.site.dir, 2))"/>
 
 <xsl:param name="pintail.source.file"/>
 
