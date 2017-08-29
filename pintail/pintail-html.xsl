@@ -25,7 +25,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 xmlns:pintail="http://pintail.io/"
                 xmlns="http://www.w3.org/1999/xhtml"
                 extension-element-prefixes="exsl"
-                exclude-result-prefixes="mal str exsl pintail"
+                exclude-result-prefixes="mal str exsl site pintail"
                 version="1.0">
 
 <xsl:param name="pintail.site.root" select="'/'"/>
