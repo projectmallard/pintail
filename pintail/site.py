@@ -705,7 +705,8 @@ class Site:
             if self.config._update:
                 self.log('UPDATE', 'https://git.gnome.org/browse/yelp-xsl@' + self.yelp_xsl_branch)
                 p = subprocess.Popen(['git', 'pull', '-q', '-r', 'origin', self.yelp_xsl_branch],
-                                     cwd=self.tools_path)
+                                     cwd=os.path.join(self.tools_path,
+                                                      'yelp-xsl@' + self.yelp_xsl_branch))
                 p.communicate()
         else:
             self.log('CLONE', 'https://git.gnome.org/browse/yelp-xsl@' + self.yelp_xsl_branch)
