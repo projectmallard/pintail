@@ -33,7 +33,8 @@ NS_MAP = {
 
 class MallardPage(pintail.site.Page,
                   pintail.site.ToolsProvider,
-                  pintail.site.CssProvider):
+                  pintail.site.CssProvider,
+                  pintail.site.XslProvider):
 
     _html_transform = None
 
@@ -295,6 +296,20 @@ class MallardPage(pintail.site.Page,
                 ret += child.tail or ''
             return ret
         return _accumulate_text(tree.getroot())
+
+    @classmethod
+    def get_xsl_params(cls, output, obj, lang=None):
+        if not (output == 'html' and isinstance(obj, MallardPage)):
+            return []
+        d = obj.directory
+        while d is not None:
+            ed = d.site.config.get('editor_mode', d.path)
+            if ed == 'False':
+                return []
+            if ed == 'True':
+                return [('mal2html.editor_mode', '1')]
+            d = d.parent
+        return []
 
     @classmethod
     def get_pages(cls, directory, filename):
