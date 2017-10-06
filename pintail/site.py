@@ -87,7 +87,12 @@ class XslProvider(Extendable):
             ret.append(('pintail.extension.link', link_extension))
         if hasattr(obj, 'site'):
             ret.append(('mal.cache.file', obj.site.get_cache_path(lang)))
-            ret.append(('pintail.site.root', obj.site.config.get('site_root') or '/'))
+            if hasattr(obj, 'directory'):
+                ret.append(('pintail.site.root', obj.site.config.get_site_root(obj.directory.path)))
+            elif isinstance(obj, Directory):
+                ret.append(('pintail.site.root', obj.site.config.get_site_root(obj.path)))
+            else:
+                ret.append(('pintail.site.root', obj.site.config.get_site_root()))
         if hasattr(obj, 'directory'):
             ret.append(('pintail.site.dir', obj.directory.path))
             if output == 'html':
@@ -129,7 +134,7 @@ class Page(Extendable):
 
     @property
     def site_path(self):
-        root = self.site.config.get('site_root') or '/'
+        root = self.site.config.get_site_root(self.directory.path)
         ext = self.site.config.get('link_extension')
         if ext is None:
             ext = self.site.config.get('html_extension') or '.html'
@@ -456,7 +461,7 @@ class Directory(Extendable):
 
             root = self.site.config.get('feed_root', self.path)
             if root is None:
-                root = self.site.config.get('site_root') or '/'
+                root = self.site.config.get_site_root(self.path)
 
             subprocess.call(['xsltproc',
                              '-o', os.path.join(self.get_target_path(), atomfile),
@@ -913,6 +918,17 @@ class Config:
             if ret is not None:
                 return ret
         return self._config.get(path, key, fallback=None)
+
+    def get_site_root(self, path=None):
+        if self._local and path is not None:
+            if path == '/':
+                return './'
+            ret = ''
+            for i in range(path.count('/') - 1):
+                ret = '../' + ret
+            return ret
+        else:
+            return self.get('site_root') or '/'
 
     def set_local(self):
         self._config.set('pintail', 'site_root',
