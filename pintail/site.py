@@ -708,20 +708,20 @@ class Site:
         Site._makedirs(self.tools_path)
         if os.path.exists(self.yelp_xsl_path):
             if self.config._update:
-                self.log('UPDATE', 'https://git.gnome.org/browse/yelp-xsl@' + self.yelp_xsl_branch)
+                self.log('UPDATE', 'https://gitlab.gnome.org/GNOME/yelp-xsl@' + self.yelp_xsl_branch)
                 p = subprocess.Popen(['git', 'pull', '-q', '-r', 'origin', self.yelp_xsl_branch],
                                      cwd=os.path.join(self.tools_path,
                                                       'yelp-xsl@' + self.yelp_xsl_branch))
                 p.communicate()
         else:
-            self.log('CLONE', 'https://git.gnome.org/browse/yelp-xsl@' + self.yelp_xsl_branch)
+            self.log('CLONE', 'https://gitlab.gnome.org/GNOME/yelp-xsl@' + self.yelp_xsl_branch)
             p = subprocess.Popen(['git', 'clone', '-q',
                                   '-b', self.yelp_xsl_branch, '--single-branch',
-                                  'https://git.gnome.org/browse/yelp-xsl',
+                                  'https://gitlab.gnome.org/GNOME/yelp-xsl.git',
                                   self.yelp_xsl_dir],
                                  cwd=self.tools_path)
             p.communicate()
-        self.log('BUILD', 'https://git.gnome.org/browse/yelp-xsl@' + self.yelp_xsl_branch)
+        self.log('BUILD', 'https://gitlab.gnome.org/GNOME/yelp-xsl@' + self.yelp_xsl_branch)
         if os.path.exists(os.path.join(self.yelp_xsl_path, 'localbuild.sh')):
             p = subprocess.Popen([os.path.join(self.yelp_xsl_path, 'localbuild.sh')],
                                  cwd=self.yelp_xsl_path,
