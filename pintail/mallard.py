@@ -279,6 +279,14 @@ class MallardPage(pintail.site.Page,
         else:
             return res[-1].xpath('string(.)')
 
+    def get_keywords(self, hint=None, lang=None):
+        tree = self._get_tree(lang)
+        res = tree.xpath('/mal:page/mal:info/mal:keywords', namespaces=NS_MAP)
+        if len(res) == 0:
+            return ''
+        else:
+            return res[-1].xpath('string(.)')
+
     def get_content(self, hint=None, lang=None):
         # FIXME: could be good to have smarter block/inline handling, conditional
         # processing, correct block fallback. Probably should just have a mal2text

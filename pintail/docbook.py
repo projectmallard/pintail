@@ -133,6 +133,23 @@ class DocBookPage(pintail.site.Page, pintail.site.ToolsProvider, pintail.site.Cs
     def get_title(self, hint=None, lang=None):
         return self.get_title_node(self._get_tree(lang).getroot(), hint=hint)
 
+    def get_keywords_node(self, node, hint=None):
+        keywords = ''
+        for child in node:
+            if child.tag in DOCBOOK_INFOS:
+                for info in child:
+                    if info.tag in ('keywordset', DOCBOOK_NS + 'keywordset'):
+                        for keyword in info:
+                            if keyword.tag in ('keyword', DOCBOOK_NS + 'keyword'):
+                                if keywords != '':
+                                    keywords += ', '
+                                keywords += keyword.xpath('string(.)')
+                break
+        return keywords
+
+    def get_keywords(self, hint=None, lang=None):
+        return self.get_keywords_node(self._get_tree(lang).getroot(), hint=hint)
+
     def get_content_node(self, node, hint=None):
         depth = 0
         parent = node.getparent()
@@ -513,6 +530,11 @@ class DocBookSubPage(pintail.site.Page):
         el = self._db_page._get_tree(lang).getroot().xpath('//*[@id = "%s" or @xml:id = "%s"]' %
                                                            (self._sect_id, self._sect_id))
         return self._db_page.get_title_node(el[0], hint=hint)
+
+    def get_keywords(self, hint=None, lang=None):
+        el = self._db_page._get_tree(lang).getroot().xpath('//*[@id = "%s" or @xml:id = "%s"]' %
+                                                           (self._sect_id, self._sect_id))
+        return self._db_page.get_keywords_node(el[0], hint=hint)
 
     def get_content(self, hint=None, lang=None):
         el = self._db_page._get_tree(lang).getroot().xpath('//*[@id = "%s" or @xml:id = "%s"]' %
