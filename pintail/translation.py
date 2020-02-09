@@ -1,5 +1,5 @@
 # pintail - Build static sites from collections of Mallard documents
-# Copyright (c) 2016 Shaun McCance <shaunm@gnome.org>
+# Copyright (c) 2016-2020 Shaun McCance <shaunm@gnome.org>
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU Lesser General Public License as published by the Free
@@ -19,14 +19,31 @@
 import pintail.site
 
 class TranslationProvider(pintail.site.Extendable):
+    """
+    An extension point to provide translations for the site.
+    """
     def __init__(self, site):
         self.site = site
         self._langs = None
 
+
     def get_source_lang(self):
+        """
+        Get the language code for the original source language of the site.
+
+        By default, this uses the `source_lang` config option, or `en` if that isn't present.
+        Different translation providers could have a different behavior.
+        """
         return self.site.config.get('source_lang') or 'en'
 
+
     def get_site_langs(self):
+        """
+        Get all languages used throughout the site.
+
+        This returns all languages used in any directory in the site.
+        Translation providers probably do not need to override this method.
+        """
         if self._langs is not None:
             return self._langs
         self._langs = []
@@ -36,11 +53,29 @@ class TranslationProvider(pintail.site.Extendable):
                     self._langs.append(lang)
         return self._langs
 
+
     def get_directory_langs(self, directory):
+        """
+        Get all languages available for a single directory.
+
+        Translation providers should override this method.
+        """
         return []
 
+
     def translate_page(self, page, lang):
+        """
+        Translate a page into a language and return whether it was translated.
+
+        Translation providers should override this method.
+        """
         return False
 
-    def translate_media(self, directory, mediafile, lang):
+
+    def translate_media(self, source, mediafile, lang):
+        """
+        Translate a media file into a language and return whether it was translated.
+
+        Translation providers should override this method.
+        """
         return False
