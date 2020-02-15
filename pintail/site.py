@@ -581,6 +581,7 @@ class Directory(Extendable):
                                                      'Duplicate page id ' + page.page_id)
                     by_page_id[page.page_id] = page
                     self.pages.append(page)
+                    source.pages.append(page)
 
 
     def iter_directories(self):
@@ -865,6 +866,7 @@ class Source(Extendable):
     def __init__(self, directory, name):
         self.directory = directory
         self.name = name
+        self.pages = []
         self.site = self.directory.site
 
 
