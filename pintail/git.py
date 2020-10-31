@@ -1,5 +1,5 @@
 # pintail - Build static sites from collections of Mallard documents
-# Copyright (c) 2015 Shaun McCance <shaunm@gnome.org>
+# Copyright (c) 2015-2020 Shaun McCance <shaunm@gnome.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,44 +19,74 @@ import subprocess
 
 import pintail.site
 
-class GitDirectory(pintail.site.Directory, pintail.site.XslProvider):
-    def __init__(self, site, path, *, parent=None):
-        self.repo = site.config.get('git_repository', path)
-        self.branch = site.config.get('git_branch', path) or 'master'
+
+class GitSource(pintail.site.Source, pintail.site.XslProvider):
+    """
+    A source directory from a remote git repository.
+
+    If a directory or other source in the config file uses the `git_repository` option,
+    this source will be used to fetch pages from another git repository.
+    This source recognizes the following config options:
+
+    * `git_repository` - The git repository URL, suitable to pass to `git clone`.
+    * `git_branch` - The remote git branch to check out.
+    * `git_directory` - The directory in the git repository where pages can be found.
+    * `git_update` - Whether to update the git clone on each run, `true` or `false`.
+    """
+
+    def __init__(self, directory, name):
+        self.repo = directory.site.config.get('git_repository', name)
+        self.branch = directory.site.config.get('git_branch', name) or 'master'
         self.repodir = (self.repo.replace('/', '!') + '@@' +
                         self.branch.replace('/', '!'))
-        self.absrepodir = os.path.join(site.pindir, 'git', self.repodir)
+        self.absrepodir = os.path.join(directory.site.pindir, 'git', self.repodir)
+
+        super().__init__(directory, name)
 
         if os.path.exists(self.absrepodir):
-            if site.config._update and site.config.get('git_update', path) != 'false':
-                site.log('UPDATE', self.repo + '@' + self.branch)
+            if self.site.config._update and self.site.config.get('git_update', name) != 'false':
+                self.site.log('UPDATE', self.repo + '@' + self.branch)
                 p = subprocess.Popen(['git', 'pull', '-q', '-r',
                                       'origin', self.branch],
                                      cwd=self.absrepodir)
                 p.communicate()
         else:
-            site.log('CLONE', self.repo + '@' + self.branch)
-            pintail.site.Site._makedirs(os.path.join(site.pindir, 'git'))
-            p = subprocess.Popen(['git', 'clone', '-q',
-                                  '-b', self.branch, '--depth=1',
+            self.site.log('CLONE', self.repo + '@' + self.branch)
+            pintail.site.Site._makedirs(os.path.join(self.site.pindir, 'git'))
+            p = subprocess.Popen(['git', 'clone', '-q', '--depth', '1',
+                                  '-b', self.branch, '--single-branch',
                                   self.repo, self.repodir],
-                                 cwd=os.path.join(site.pindir, 'git'))
+                                 cwd=os.path.join(self.site.pindir, 'git'))
             p.communicate()
 
-        super().__init__(site, path, parent=parent)
 
     def get_source_path(self):
+        """
+        The absolute path to the source directory for this source.
+        """
         return os.path.join(self.absrepodir,
-                            self.site.config.get('git_directory', self.path) or '')
+                            self.site.config.get('git_directory', self.name) or '')
+
 
     @classmethod
-    def is_special_path(cls, site, path):
-        repo = site.config.get('git_repository', path)
+    def create_sources(cls, directory, name):
+        """
+        Return a list of source objects for a remote git source.
+
+        If a directory or other source in the config file uses `git_repository`,
+        this function will return a list with a single git source.
+        """
+        repo = directory.site.config.get('git_repository', name)
         if repo is not None:
-            return True
+            return [cls(directory, name)]
+        return []
+
 
     @classmethod
     def get_xsl_params(cls, output, obj, lang=None):
+        """
+        Get a list of XSLT params about the git location.
+        """
         if not (output == 'html' and isinstance(obj, pintail.site.Page)):
             return []
         if isinstance(obj.directory, cls):

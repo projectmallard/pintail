@@ -1,5 +1,5 @@
 # pintail - Build static sites from collections of Mallard documents
-# Copyright (c) 2016 Shaun McCance <shaunm@gnome.org>
+# Copyright (c) 2016-2020 Shaun McCance <shaunm@gnome.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,14 +17,32 @@
 import pintail.site
 
 class SearchProvider(pintail.site.Extendable):
+    """
+    An extension point to provide search for the site.
+    """
     def __init__(self, site):
         self.site = site
 
     def index_site(self):
+        """
+        Build the search index for the site.
+
+        This method calls `index_directory` on each directory in the site.
+        Search providers probably do not need to override this method.
+        """
         for subdir in self.site.root.iter_directories():
             self.index_directory(subdir)
 
     def index_directory(self, directory):
+        """
+        Build the search index for the directory.
+
+        This method looks at each page in the directory.
+        If the page is searchable, it calls `index_page` on the page,
+        then calls `index_page` again once for each language returned by
+        the translation provider for the directory.
+        Search providers probably do not need to override this method.
+        """
         langs = [None]
         if not self.site.get_filter(directory):
             return
@@ -42,4 +60,10 @@ class SearchProvider(pintail.site.Extendable):
                 self.index_page(page, lang=lc)
 
     def index_page(self, page, lang=None):
+        """
+        Build the search index for the directory.
+
+        Search providers should override this method to add data for the
+        page to the search index.
+        """
         pass
