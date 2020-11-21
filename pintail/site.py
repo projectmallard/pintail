@@ -564,12 +564,15 @@ class Directory(Extendable):
         # Now that we have our sources, look for subdirectories of this
         # directory, using all sources.
         for source in self.sources:
-            for name in os.listdir(source.get_source_path()):
-                if os.path.isdir(os.path.join(source.get_source_path(), name)):
-                    subpath = self.path + name + '/'
-                    if self.site.get_ignore_directory(subpath):
-                        continue
-                    self.subdirs.append(Directory(self.site, subpath, parent=self))
+            try:
+                for name in os.listdir(source.get_source_path()):
+                    if os.path.isdir(os.path.join(source.get_source_path(), name)):
+                        subpath = self.path + name + '/'
+                        if self.site.get_ignore_directory(subpath):
+                            continue
+                        self.subdirs.append(Directory(self.site, subpath, parent=self))
+            except:
+                self.site.fail('Failed to list files in ' + source.get_source_path())
 
         # Finally, ask each Page extension to provide a list of pages for each source
         by_page_id = {}
@@ -1437,6 +1440,22 @@ class Site:
         if data.startswith(self.pindir + '/'):
             data = data[len(os.path.dirname(self.pindir))+1:]
         self.logger.info('%(tag)-6s %(data)s' % {'tag': tag, 'data': data})
+
+
+    def warn(self, message):
+        """
+        Write a warning message to the log.
+        """
+        # FIXME I'd like to have a fatal warnings switch
+        self.log('WARN', message)
+
+
+    def fail(self, message):
+        """
+        Write a failure message to the log and exit.
+        """
+        self.log('FAIL', message)
+        sys.exit(1)
 
 
     @classmethod

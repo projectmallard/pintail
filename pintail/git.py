@@ -48,16 +48,24 @@ class GitSource(pintail.site.Source, pintail.site.XslProvider):
                 self.site.log('UPDATE', self.repo + '@' + self.branch)
                 p = subprocess.Popen(['git', 'pull', '-q', '-r',
                                       'origin', self.branch],
-                                     cwd=self.absrepodir)
-                p.communicate()
+                                     cwd=self.absrepodir,
+                                     env={'GIT_TERMINAL_PROMPT': '0'})
+                try:
+                    p.communicate()
+                except:
+                    self.site.warn('Failed to update git repository')
         else:
             self.site.log('CLONE', self.repo + '@' + self.branch)
             pintail.site.Site._makedirs(os.path.join(self.site.pindir, 'git'))
             p = subprocess.Popen(['git', 'clone', '-q', '--depth', '1',
                                   '-b', self.branch, '--single-branch',
                                   self.repo, self.repodir],
-                                 cwd=os.path.join(self.site.pindir, 'git'))
-            p.communicate()
+                                 cwd=os.path.join(self.site.pindir, 'git'),
+                                 env={'GIT_TERMINAL_PROMPT': '0'})
+            try:
+                p.communicate()
+            except:
+                self.site.fail('Failed to clone git repository')
 
 
     def get_source_path(self):
