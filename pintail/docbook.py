@@ -660,7 +660,7 @@ class DocBookTools(pintail.site.ToolsProvider, pintail.site.CssProvider):
             '<xsl:import href="' + xslpath + '/common/icons.xsl"/>\n',
             '<xsl:import href="' + xslpath + '/common/html.xsl"/>\n',
             '<xsl:import href="' + xslpath + '/common/tmpl.xsl"/>\n',
-            '<xsl:import href="' + xslpath + '/docbook/html/db2html-css.xsl"/>\n'
+            '<xsl:import href="' + xslpath + '/docbook/html/db2html-division.xsl"/>\n'
             ])
         fd.write('<xsl:import href="%s"/>\n' % 'pintail-html.xsl')
         for xsl in site.get_custom_xsl():
