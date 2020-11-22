@@ -1482,6 +1482,13 @@ class Config:
         self._site = site
         self._config = configparser.ConfigParser()
         self._config.read(filename)
+        self._configger = configparser.ConfigParser()
+        configger = self._config.get('pintail', 'configger', fallback=None)
+        if configger is not None:
+            p = subprocess.Popen([os.path.join(os.path.dirname(filename), configger)],
+                                 stdout=subprocess.PIPE,
+                                 universal_newlines=True)
+            self._configger.readfp(p.stdout)
         self._local = False
         self._update = True
         self._index = True
@@ -1499,9 +1506,18 @@ class Config:
         if path is None:
             path = 'pintail'
         if self._local and path == 'pintail':
+            ret = self._configger.get('local', key, fallback=None)
+            if ret is not None:
+                return ret
             ret = self._config.get('local', key, fallback=None)
             if ret is not None:
                 return ret
+        if path.startswith('/') and key == 'extra_files':
+            return (self._configger.get(path, key, fallback='') + ' ' +
+                    self._config.get(path, key, fallback=''))
+        ret = self._configger.get(path, key, fallback=None)
+        if ret is not None:
+            return ret
         return self._config.get(path, key, fallback=None)
 
 
