@@ -1132,8 +1132,10 @@ class Site:
         for directory in self.root.iter_directories():
             directories[directory.path] = directory
 
-        configdirs = [d for d in self.config._config.sections()
-                      if d.startswith('/') and d.endswith('/')]
+        configdirs = set([d for d in self.config._config.sections()
+                          if d.startswith('/') and d.endswith('/')] +
+                         [d for d in self.config._configger.sections()
+                          if d.startswith('/') and d.endswith('/')] )
         for path in configdirs:
             if path not in directories:
                 parent = directories['/']
