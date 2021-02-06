@@ -897,44 +897,34 @@ class Site:
     """
     Base class for an entire Pintail site.
     """
-    def __init__(self, config):
-        self.topdir = os.path.dirname(config)
+    def __init__(self, configfile,
+                 local=False,
+                 search=True,
+                 translation=True,
+                 update=True,
+                 verbose=False):
+        self._configfile = configfile
+        self.topdir = os.path.dirname(configfile)
         self.srcdir = self.topdir
         self.pindir = os.path.join(self.topdir, '__pintail__')
         self.target_path = os.path.join(self.pindir, 'build')
         self.tools_path = os.path.join(self.pindir, 'tools')
 
-        self.root = None
-        self.config = Config(self, config)
-        self.verbose = False
-
-        self.yelp_xsl_branch = self.config.get('yelp_xsl_branch') or 'master'
-        self.yelp_xsl_dir = 'yelp-xsl@' + self.yelp_xsl_branch.replace('/', '@')
-        self.yelp_xsl_path = os.path.join(self.tools_path, self.yelp_xsl_dir)
-
         self.logger = logging.getLogger('pintail')
         self.logger.addHandler(logging.StreamHandler())
+        if verbose:
+            self.logger.setLevel(logging.INFO)
+        self._verbose = verbose
 
+        self._local = local
+        self._update = update
+        self._search = search
+        self._translation = translation
+        self._command = None
         self._filter = []
 
-        for plugin in (self.config.get('plugins') or '').split():
-            importlib.import_module(plugin)
-
-        self.search_provider = None
-        search = self.config.get('search_provider')
-        if search is not None:
-            dot = search.rindex('.')
-            searchmod = importlib.import_module(search[:dot])
-            searchcls = getattr(searchmod, search[dot+1:])
-            self.search_provider = searchcls(self)
-
-        self.translation_provider = None
-        trans = self.config.get('translation_provider')
-        if trans is not None:
-            dot = trans.rindex('.')
-            transmod = importlib.import_module(trans[:dot])
-            transcls = getattr(transmod, trans[dot+1:])
-            self.translation_provider = transcls(self)
+        self.config = None # set by prep_site
+        self.root = None # set by scan_site
 
 
     @classmethod
@@ -956,6 +946,80 @@ class Site:
         fd = open(cfgfile, 'w')
         fd.write(codecs.decode(sample, 'utf-8'))
         fd.close()
+
+
+    def get_script_env(self, config=None):
+        """
+        Get environment variables to pass to external scripts.
+
+        Pintail can call external scripts with the `before_script`, `config_script`,
+        and `after_script` config options. When it calls these scripts, it passes
+        some environment variables with information on the command being run. This
+        method returns these environment variables as a dict.
+
+        This method accepts `config` as an optional keyword argument, because it
+        may be called during the initialization of a `Config` object, before that
+        object has been assigned to the `config` property of the `Site` object.
+
+        Note that some environment variables may be affected by options set in the
+        config file, such as `PINTAIL_SITE_ROOT`. If these options are set in the
+        config data output by `config_script`, the value will be different when
+        passed to `after_script` than it was for `before_script` and `config_script`.
+
+        This method may return the following environment variables:
+
+        `PINTAIL_ARGS`
+            The positional arguments passed to `pintail` after the command. This
+            does not include options like `--local` or `-v`.
+
+        `PINTAIL_COMMAND`:
+            The command passed to `pintail`, such as `build` or `css`.
+
+        `PINTAIL_LOCAL`:
+            Whether Pintail is performing a local build with the `--local` option.
+
+        `PINTAIL_NO_SEARCH`:
+            Whether Pintail is skipping search with the `--no-search` option.
+
+        `PINTAIL_NO_TRANSLATION`:
+            Whether Pintail is skipping translation with the `--no-translation` option.
+
+        `PINTAIL_NO_UPDATE`:
+            Whether Pintail is skipping git updates with the `--no-update` option.
+
+        `PINTAIL_OUTPUT`:
+            The root directory where files will be output.
+
+        `PINTAIL_SITE_ROOT`:
+            The root URL for the site. By default, this is just `/`, but it can be set
+            with the `site_root` option in the config file. Note that local builds change
+            the site root internally for each directory, but this variable is always the
+            same global value and is not affected by `--local`.
+        
+        `PINTAIL_VERBOSE`:
+            Whether Pintail is printing progress with the `--verbose` option.
+        """
+        if config is None:
+            config = self.config
+        env = {}
+        env['PINTAIL_ARGS'] = ' '.join(self._filter)
+        env['PINTAIL_COMMAND'] = self._command or ''
+        if self._local:
+            env['PINTAIL_LOCAL'] = '1'
+
+        if not self._search:
+            env['PINTAIL_NO_SEARCH'] = '1'
+        if not self._translation:
+            env['PINTAIL_NO_TRANSLATION'] = '1'
+        if not self._update:
+            env['PINTAIL_NO_UPDATE'] = '1'
+
+        env['PINTAIL_OUTPUT'] = self.target_path
+        env['PINTAIL_SITE_ROOT'] = config.get_site_root()
+        if self._verbose:
+            env['PINTAIL_VERBOSE'] = '1'
+
+        return env
 
 
     def set_filter(self, dirs):
@@ -1110,6 +1174,47 @@ class Site:
         return False
 
 
+    def prep_site(self):
+        """
+        Prepare the site and configuration data.
+
+        This method reads the configuration data and sets up transform data and
+        plugins, as necessary. It needs to be called separately from object
+        initialization so that `Config` initialization has access to various
+        bits of data that are not set on `Site` initialization.
+
+        This method is not called automatically. Ensure you call it before any build methods.
+        It is safe to call this method multiple times.
+        """
+        if self.config is not None:
+            return
+        self.config = Config(self, self._configfile)
+
+        self.yelp_xsl_branch = self.config.get('yelp_xsl_branch') or 'master'
+        self.yelp_xsl_dir = 'yelp-xsl@' + self.yelp_xsl_branch.replace('/', '@')
+        self.yelp_xsl_path = os.path.join(self.tools_path, self.yelp_xsl_dir)
+
+        for plugin in (self.config.get('plugins') or '').split():
+            importlib.import_module(plugin)
+
+        self.search_provider = None
+        search = self.config.get('search_provider')
+        if search is not None:
+            dot = search.rindex('.')
+            searchmod = importlib.import_module(search[:dot])
+            searchcls = getattr(searchmod, search[dot+1:])
+            self.search_provider = searchcls(self)
+
+        self.translation_provider = None
+        if self._translation:
+            trans = self.config.get('translation_provider')
+            if trans is not None:
+                dot = trans.rindex('.')
+                transmod = importlib.import_module(trans[:dot])
+                transcls = getattr(transmod, trans[dot+1:])
+                self.translation_provider = transcls(self)
+
+
     def scan_site(self):
         """
         Scan the entire site for directories, sources, and pages.
@@ -1125,6 +1230,7 @@ class Site:
         """
         if self.root is not None:
             return
+        self.log('SCAN', '/')
         if os.path.exists(self.get_stage_path()):
             shutil.rmtree(self.get_stage_path())
         self.root = Directory(self, '/')
@@ -1134,7 +1240,7 @@ class Site:
 
         configdirs = set([d for d in self.config._config.sections()
                           if d.startswith('/') and d.endswith('/')] +
-                         [d for d in self.config._configger.sections()
+                         [d for d in self.config._configscr.sections()
                           if d.startswith('/') and d.endswith('/')] )
         for path in configdirs:
             if path not in directories:
@@ -1151,10 +1257,39 @@ class Site:
                         parent = curdir
 
 
-    def build(self):
+    def build(self, command='build'):
+        """
+        Call the appropriate build methods, based on the `build` parameter.
+        """
+        self._command = command
+        if command == 'build':
+            self.build_all()
+        elif command == 'css':
+            self.build_cache()
+            self.build_css()
+        elif command == 'js':
+            self.build_cache()
+            self.build_js()
+        elif command == 'files':
+            self.build_files()
+        elif command == 'feeds':
+            self.build_cache()
+            self.build_feeds()
+
+        script = self.config.get('after_script')
+        if script is not None:
+            self.log('SCRIPT', script)
+            ret = subprocess.call([os.path.join(self.topdir, script)],
+                                  env=self.get_script_env())
+            if ret != 0:
+                sys.stderr.write('after_script failed\n')
+                sys.exit(1)
+
+    def build_all(self, command='build'):
         """
         Build the entire site, including all pages and additional files.
         """
+        self.prep_site()
         self.scan_site()
         self.build_cache()
         self.build_tools()
@@ -1172,6 +1307,7 @@ class Site:
         """
         Build the Mallard cache files for this site.
         """
+        self.prep_site()
         self.scan_site()
         self.log('CACHE', self.get_cache_path())
         cache = etree.Element(CACHE_NS + 'cache', nsmap={
@@ -1211,9 +1347,10 @@ class Site:
         then copies its customizations into `pintail-html.xsl`,
         and finally calls `get_tools` on each `ToolsProvider`.
         """
+        self.prep_site()
         Site._makedirs(self.tools_path)
         if os.path.exists(self.yelp_xsl_path):
-            if self.config._update:
+            if self._update:
                 self.log('UPDATE', 'https://gitlab.gnome.org/GNOME/yelp-xsl@' + self.yelp_xsl_branch)
                 p = subprocess.Popen(['git', 'pull', '-q', '-r', 'origin', self.yelp_xsl_branch],
                                      cwd=os.path.join(self.tools_path,
@@ -1258,6 +1395,7 @@ class Site:
         """
         Build all HTML files for this site.
         """
+        self.prep_site()
         self.scan_site()
         self.root.build_html()
 
@@ -1266,6 +1404,7 @@ class Site:
         """
         Copy media files for the entire site.
         """
+        self.prep_site()
         self.scan_site()
         self.root.build_media()
 
@@ -1276,6 +1415,7 @@ class Site:
 
         This function iterates over all `CssProvider` subclasses and asks them to build CSS.
         """
+        self.prep_site()
         self.scan_site()
         for cls in CssProvider.iter_subclasses('build_css'):
             cls.build_css(self)
@@ -1285,6 +1425,7 @@ class Site:
         """
         Build all JavaScript files for the site.
         """
+        self.prep_site()
         self.scan_site()
         jspath = os.path.join(self.yelp_xsl_path, 'js')
 
@@ -1390,6 +1531,7 @@ class Site:
         """
         Copy all extra files for this site.
         """
+        self.prep_site()
         self.scan_site()
         self.root.build_files()
 
@@ -1398,6 +1540,7 @@ class Site:
         """
         Build all Atom feeds for this site.
         """
+        self.prep_site()
         self.scan_site()
         self.root.build_feeds()
 
@@ -1409,7 +1552,8 @@ class Site:
         If there is a search provider, this method calls `index_site` on it.
         Otherwise, this method does nothing.
         """
-        if self.config._index:
+        self.prep_site()
+        if self._search:
             self.scan_site()
             if self.search_provider is not None:
                 self.search_provider.index_site()
@@ -1484,16 +1628,23 @@ class Config:
         self._site = site
         self._config = configparser.ConfigParser()
         self._config.read(filename)
-        self._configger = configparser.ConfigParser()
-        configger = self._config.get('pintail', 'configger', fallback=None)
-        if configger is not None:
-            p = subprocess.Popen([os.path.join(os.path.dirname(filename), configger)],
+        self._configscr = configparser.ConfigParser()
+        script = self._config.get('pintail', 'before_script', fallback=None)
+        if script is not None:
+            site.log('SCRIPT', script)
+            ret = subprocess.call([os.path.join(os.path.dirname(filename), script)],
+                                  env=site.get_script_env(self))
+            if ret != 0:
+                sys.stderr.write('before_script failed\n')
+                sys.exit(1)
+        script = self._config.get('pintail', 'config_script', fallback=None)
+        if script is not None:
+            site.log('SCRIPT', script)
+            p = subprocess.Popen([os.path.join(os.path.dirname(filename), script)],
                                  stdout=subprocess.PIPE,
+                                 env=site.get_script_env(self),
                                  universal_newlines=True)
-            self._configger.readfp(p.stdout)
-        self._local = False
-        self._update = True
-        self._index = True
+            self._configscr.readfp(p.stdout)
 
 
     def get(self, key, path=None):
@@ -1507,17 +1658,17 @@ class Config:
         """
         if path is None:
             path = 'pintail'
-        if self._local and path == 'pintail':
-            ret = self._configger.get('local', key, fallback=None)
+        if self._site._local and path == 'pintail':
+            ret = self._configscr.get('local', key, fallback=None)
             if ret is not None:
                 return ret
             ret = self._config.get('local', key, fallback=None)
             if ret is not None:
                 return ret
         if path.startswith('/') and key == 'extra_files':
-            return (self._configger.get(path, key, fallback='') + ' ' +
+            return (self._configscr.get(path, key, fallback='') + ' ' +
                     self._config.get(path, key, fallback=''))
-        ret = self._configger.get(path, key, fallback=None)
+        ret = self._configscr.get(path, key, fallback=None)
         if ret is not None:
             return ret
         return self._config.get(path, key, fallback=None)
@@ -1530,7 +1681,7 @@ class Config:
         For normal builds, this is either `"/"` or the value of the `site_root` config option.
         For local builds, this method creates a relative path from the `path` argument.
         """
-        if self._local and path is not None:
+        if self._site._local and path is not None:
             if path == '/':
                 return './'
             ret = ''
@@ -1539,33 +1690,3 @@ class Config:
             return ret
         else:
             return self.get('site_root') or '/'
-
-
-    def set_local(self):
-        """
-        Set whether we are doing a local build.
-
-        Local builds modify paths and certain other things to create files
-        suitable for previewing locally.
-        """
-        self._config.set('pintail', 'site_root',
-                         self._site.target_path + '/')
-        self._local = True
-
-
-    def set_update(self, update):
-        """
-        Set whether or not git repositories should be updated.
-
-        Pintail will always clone repositories it does not have yet.
-        Normally, it will update repositories it has already cloned.
-        With updates turned off, it will not update cloned repositories.
-        """
-        self._update = update
-
-
-    def set_index(self, index):
-        """
-        Set whether or not to index pages with the search provider.
-        """
-        self._index = index

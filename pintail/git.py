@@ -44,7 +44,7 @@ class GitSource(pintail.site.Source, pintail.site.XslProvider):
         super().__init__(directory, name)
 
         if os.path.exists(self.absrepodir):
-            if self.site.config._update and self.site.config.get('git_update', name) != 'false':
+            if self.site._update and self.site.config.get('git_update', name) != 'false':
                 self.site.log('UPDATE', self.repo + '@' + self.branch)
                 p = subprocess.Popen(['git', 'pull', '-q', '-r',
                                       'origin', self.branch],

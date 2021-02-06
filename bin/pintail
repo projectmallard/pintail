@@ -16,7 +16,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
-import logging
 import os
 import sys
 
@@ -43,7 +42,10 @@ if __name__ == '__main__':
     common.add_argument('--no-update',
                         help='do not update from remote repositories',
                         action='store_true')
-    common.add_argument('--no-index',
+    common.add_argument('--no-translation',
+                        help='do not process translation',
+                        action='store_true')
+    common.add_argument('--no-search',
                         help='do not update the search index',
                         action='store_true')
 
@@ -86,34 +88,18 @@ if __name__ == '__main__':
         sys.stderr.write('Could not find a pintail.cfg file\n')
         sys.exit(1)
 
-    site = pintail.site.Site(config)
-    if args.verbose:
-        site.logger.setLevel(logging.INFO)
+    sitekwargs = {}
+    sitekwargs['local'] = args.local
+    sitekwargs['search'] = not args.no_search
+    sitekwargs['translation'] = not args.no_translation
+    sitekwargs['update'] = not args.no_update
+    sitekwargs['verbose'] = args.verbose
 
-    if args.local:
-        site.config.set_local()
-
-    if args.no_update:
-        site.config.set_update(False)
-
-    if args.no_index:
-        site.config.set_index(False)
+    site = pintail.site.Site(config, **sitekwargs)
 
     if args.output is not None:
         site.target_path = os.path.abspath(args.output)
+    if args.command in ('build', 'files'):
+        site.set_filter(args.dirs)
 
-    if args.command == 'build':
-        site.set_filter(args.dirs)
-        site.build()
-    elif args.command == 'css':
-        site.build_cache()
-        site.build_css()
-    elif args.command == 'js':
-        site.build_cache()
-        site.build_js()
-    elif args.command == 'files':
-        site.set_filter(args.dirs)
-        site.build_files()
-    elif args.command == 'feeds':
-        site.build_cache()
-        site.build_feeds()
+    site.build(args.command)
