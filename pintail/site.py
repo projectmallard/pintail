@@ -1261,6 +1261,7 @@ class Site:
         """
         Call the appropriate build methods, based on the `build` parameter.
         """
+        starttime = datetime.datetime.now()
         self._command = command
         if command == 'build':
             self.build_all()
@@ -1284,6 +1285,9 @@ class Site:
             if ret != 0:
                 sys.stderr.write('after_script failed\n')
                 sys.exit(1)
+
+        endtime = datetime.datetime.now()
+        self.log('FINISH', str(datetime.timedelta(seconds=(endtime - starttime).seconds)))
 
     def build_all(self, command='build'):
         """
