@@ -1263,31 +1263,38 @@ class Site:
         """
         starttime = datetime.datetime.now()
         self._command = command
-        if command == 'build':
-            self.build_all()
-        elif command == 'css':
-            self.build_cache()
-            self.build_css()
-        elif command == 'js':
-            self.build_cache()
-            self.build_js()
-        elif command == 'files':
-            self.build_files()
-        elif command == 'feeds':
-            self.build_cache()
-            self.build_feeds()
-
-        script = self.config.get('after_script')
-        if script is not None:
-            self.log('SCRIPT', script)
-            ret = subprocess.call([os.path.join(self.topdir, script)],
-                                  env=self.get_script_env())
-            if ret != 0:
-                sys.stderr.write('after_script failed\n')
-                sys.exit(1)
+        interrupted = False
+        try:
+            if command == 'build':
+                self.build_all()
+            elif command == 'css':
+                self.build_cache()
+                self.build_css()
+            elif command == 'js':
+                self.build_cache()
+                self.build_js()
+            elif command == 'files':
+                self.build_files()
+            elif command == 'feeds':
+                self.build_cache()
+                self.build_feeds()
+            script = self.config.get('after_script')
+            if script is not None:
+                self.log('SCRIPT', script)
+                ret = subprocess.call([os.path.join(self.topdir, script)],
+                                      env=self.get_script_env())
+                if ret != 0:
+                    sys.stderr.write('after_script failed\n')
+                    sys.exit(1)
+        except KeyboardInterrupt:
+            interrupted = True
 
         endtime = datetime.datetime.now()
-        self.log('FINISH', str(datetime.timedelta(seconds=(endtime - starttime).seconds)))
+        if interrupted:
+            self.log('STOP', str(datetime.timedelta(seconds=(endtime - starttime).seconds)))
+            sys.exit(1)
+        else:
+            self.log('FINISH', str(datetime.timedelta(seconds=(endtime - starttime).seconds)))
 
     def build_all(self, command='build'):
         """
