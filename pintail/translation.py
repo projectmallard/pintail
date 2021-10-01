@@ -63,9 +63,29 @@ class TranslationProvider(pintail.site.Extendable):
         return []
 
 
+    def translate_directory(self, directory, lang):
+        """
+        Translate a directory into a language and return whether it was translated.
+
+        By default, translation providers are only expected to be able to translate
+        a single page at a time using the `translate_page` method, which is called
+        when the pages are actually used. This method, however, is called on each
+        directory very early on across all directories. Doing translations in batch
+        on directories can be significantly faster.
+
+        Translation providers should override this method if the feature is supported.
+        """
+        return False
+
+
     def translate_page(self, page, lang):
         """
         Translate a page into a language and return whether it was translated.
+
+        This method may or may not do any actual translation. If translations were
+        all done in batch with `translate_directory` or another mechanism, this
+        method might to almost nothing. However, it still needs to be implemented
+        to return True to indicate that a translation is available.
 
         Translation providers should override this method.
         """
@@ -75,6 +95,11 @@ class TranslationProvider(pintail.site.Extendable):
     def translate_media(self, source, mediafile, lang):
         """
         Translate a media file into a language and return whether it was translated.
+
+        This method may or may not do any actual translation. If translations were
+        all done in batch with `translate_directory` or another mechanism, this
+        method might to almost nothing. However, it still needs to be implemented
+        to return True to indicate that a translation is available.
 
         Translation providers should override this method.
         """

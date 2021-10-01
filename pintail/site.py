@@ -1256,6 +1256,12 @@ class Site:
                         directories[curpath] = curdir
                         parent = curdir
 
+        for path in directories:
+            directory = directories[path]
+            if directory.translation_provider is not None:
+                for lc in directory.translation_provider.get_directory_langs(directory):
+                    directory.translation_provider.translate_directory(directory, lc)
+
 
     def build(self, command='build'):
         """
