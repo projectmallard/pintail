@@ -1014,6 +1014,7 @@ class Site:
         if not self._update:
             env['PINTAIL_NO_UPDATE'] = '1'
 
+        self._makedirs(self.target_path)
         env['PINTAIL_OUTPUT'] = self.target_path
         env['PINTAIL_SITE_ROOT'] = config.get_site_root()
         if self._verbose:
