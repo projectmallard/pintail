@@ -62,8 +62,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 <xsl:param name="html.js.root" select="$pintail.site.root"/>
 
 <xsl:template name="pintail.site.sitetrail">
+  <xsl:param name="page" select="."/>
   <xsl:param name="node" select="."/>
   <xsl:param name="xref" select="$node/@xref"/>
+  <xsl:variable name="direction">
+    <xsl:call-template name="l10n.direction">
+      <xsl:with-param name="node" select="$page"/>
+    </xsl:call-template>
+  </xsl:variable>
   <xsl:variable name="xref_">
     <xsl:choose>
       <xsl:when test="$pintail.format = 'mallard'">
@@ -96,7 +102,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         <xsl:with-param name="role" select="'guide'"/>
       </xsl:call-template>
     </a>
-    <xsl:text> » </xsl:text>
+    <xsl:if test="$direction = 'rtl'">
+      <xsl:text>&#x200F;</xsl:text>
+    </xsl:if>
+    <xsl:text>&#x00A0;» </xsl:text>
+    <xsl:if test="$direction = 'rtl'">
+      <xsl:text>&#x200F;</xsl:text>
+    </xsl:if>
   </xsl:for-each>
 </xsl:template>
 
@@ -112,6 +124,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   <div class="trails">
     <div class="trail">
       <xsl:call-template name="pintail.site.sitetrail">
+        <xsl:with-param name="page" select="$node"/>
+        <xsl:with-param name="node" select="$node"/>
         <xsl:with-param name="xref">
           <xsl:value-of select="$pintail.site.dir"/>
           <xsl:value-of select="$node/@id"/>
@@ -122,15 +136,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 </xsl:template>
 
 <xsl:template name="mal2html.page.linktrails.trail.prefix">
+  <xsl:param name="page" select="."/>
   <xsl:param name="node" select="."/>
   <xsl:call-template name="html.linktrails.prefix">
+    <xsl:with-param name="page" select="$page"/>
     <xsl:with-param name="node" select="$node"/>
   </xsl:call-template>
 </xsl:template>
 
 <xsl:template name="html.linktrails.prefix">
+  <xsl:param name="page" select="."/>
   <xsl:param name="node" select="."/>
   <xsl:call-template name="pintail.site.sitetrail">
+    <xsl:with-param name="page" select="$page"/>
     <xsl:with-param name="node" select="$node"/>
   </xsl:call-template>
 </xsl:template>
@@ -230,13 +248,27 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 </xsl:template>
 
 <xsl:template name="html.css">
+  <xsl:param name="node" select="."/>
+  <xsl:variable name="locale">
+    <xsl:choose>
+      <xsl:when test="$node/ancestor-or-self::*[@xml:lang]">
+        <xsl:value-of select="$node/ancestor-or-self::*[@xml:lang][1]/@xml:lang"/>
+      </xsl:when>
+      <xsl:when test="$node/ancestor-or-self::*[@lang]">
+        <xsl:value-of select="$node/ancestor-or-self::*[@lang][1]/@xml:lang"/>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:value-of select="$pintail.site.locale"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:variable>
   <link rel="stylesheet" type="text/css">
     <xsl:attribute name="href">
       <xsl:value-of select="$pintail.site.root"/>
       <xsl:text>pintail-</xsl:text>
       <xsl:value-of select="$pintail.format"/>
       <xsl:text>-</xsl:text>
-      <xsl:value-of select="$pintail.site.locale"/>
+      <xsl:value-of select="$locale"/>
       <xsl:text>.css</xsl:text>
     </xsl:attribute>
   </link>
