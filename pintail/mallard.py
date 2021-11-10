@@ -37,6 +37,7 @@ class MallardPage(pintail.site.Page):
     """
 
     _html_transform = None
+    _stack_transforms = {}
 
     def __init__(self, source, filename):
         super().__init__(source, filename)
@@ -139,10 +140,19 @@ class MallardPage(pintail.site.Page):
         """
         Build the HTML file for this page, possibly translated.
         """
-        if lang is None:
-            self.site.log('HTML', self.site_id)
+        usestacks = (self.site.config.get('mallard_stack_dirs') == 'True')
+        if usestacks:
+            MallardPage._stack_transforms.setdefault(self.directory, set())
+            if lang in MallardPage._stack_transforms[self.directory]:
+                return
+            MallardPage._stack_transforms[self.directory].add(lang)
+            logid = self.directory.path
         else:
-            self.site.log('HTML', lang + ' ' + self.site_id)
+            logid = self.site_id
+        if lang is not None:
+            logid = lang + ' ' + logid
+        self.site.log('HTML', logid)
+
         if MallardPage._html_transform is None:
             MallardPage._html_transform = etree.XSLT(etree.parse(os.path.join(self.site.tools_path,
                                                                               'pintail-html-mallard-local.xsl')))
@@ -150,7 +160,25 @@ class MallardPage(pintail.site.Page):
         args['pintail.format'] = etree.XSLT.strparam('mallard')
         for pair in pintail.site.XslProvider.get_all_xsl_params('html', self, lang=lang):
             args[pair[0]] = etree.XSLT.strparam(pair[1])
-        MallardPage._html_transform(self._get_tree(lang), **args)
+
+        if usestacks:
+            pages = [page for page in self.directory.pages if isinstance(page, MallardPage)]
+            spath = os.path.join(self.directory.get_stage_path(lang), '__pintail_stack__.stack')
+            with open(spath, 'w') as sfile:
+                sfile.write('<stack xmlns="http://projectmallard.org/1.0/"')
+                sfile.write(' xmlns:xi="http://www.w3.org/2001/XInclude">')
+                for page in pages:
+                    if lang is not None and self.site.translate_page(page, lang):
+                        sfile.write('<xi:include href="' + page.get_stage_path(lang) + '"/>')
+                    else:
+                        sfile.write('<xi:include href="' + page.get_stage_path() + '"/>')
+                sfile.write('</stack>')
+            stree = etree.parse(spath)
+            etree.XInclude()(stree.getroot())
+            MallardPage._html_transform(stree, **args)
+            # FIXME but also some params need to become attrs on the cache
+        else:
+            MallardPage._html_transform(self._get_tree(lang), **args)
 
 
     def get_media(self):
